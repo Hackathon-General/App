@@ -23,6 +23,10 @@ export default function UserLayout() {
           options={{ title: 'מפה', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="map" color={color} size={size} /> }}
         />
         <Tabs.Screen
+          name="stations"
+          options={{ title: 'תחנות', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="format-list-bulleted" color={color} size={size} /> }}
+        />
+        <Tabs.Screen
           name="feed"
           options={{ title: 'קהילה', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="image-multiple" color={color} size={size} /> }}
         />
