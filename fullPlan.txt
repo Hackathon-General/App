@@ -1,0 +1,543 @@
+Carmel–Kinneret Trail — Community Ecosystem (Mobile + Functions + Admin Web)
+Context
+עמותת "כרמל כנרת" runs a physical trail connecting people (mother–daughter focus). The hackathon goal is one Firebase-backed ecosystem — a single data world reflected across a mobile app and an admin web dashboard, gated only by Role (User vs Admin):
+
+User (hikers/runners): background geofence missions (NFRs), photo → community feed, virtual torch relay (pass the torch to a stranger ahead), hidden admin GPS/audio alerts, take-home actions matched to stations visited, always-on SOS → 101.
+Admin (God Mode): full-screen live map with moving pins for phones AND IoT shirt sensors (ingested via an HTTP API), place NFRs live, fire GPS alerts, define take-home messages, leaderboard (runner speeds + community km).
+Backend (אופק/אביב): Cloud Functions raise/normalize the data and enforce anti-cheat so nobody fakes km or DoS's the server.
+This plan builds all three surfaces with up-to-date 2026 libs, fully in TSX.
+
+Confirmed decisions
+DB: RTDB (europe-west1) for live positions/torch; Firestore for users, feed, missions, NFRs, leaderboard, take-home. (Hybrid.)
+Native stack: expo-dev-client + EAS Build + @react-native-firebase native SDKs (matches the resmarket reference; required for background geofencing).
+Surfaces (all three): Expo mobile app (User + in-app Admin, role-gated) + Cloud Functions + web Admin dashboard (Vite + React 19 + TS + Firebase JS SDK v11) deployed to Firebase Hosting. Admin capabilities exist in BOTH the mobile app (admins in the field) and the web God-Mode command center — same secure write-path (callables + claim + rules).
+Runtime/LTS: local toolchain on Node 24.16.0 LTS (active LTS, "Krypton"; npm 11, expo CLI 56.1.16, eas-cli 19) — verified on this machine. Cloud Functions runtime pinned to nodejs22 (Node 22 is supported LTS for Functions through 2027; Node 24 is not yet a supported Functions runtime). Sources: Node release schedule, endoflife.date/nodejs.
+Firebase project (already provisioned — extraContext.txt, plist, google-services.json)
+projectId carmel-kinneret, RTDB https://carmel-kinneret-default-rtdb.europe-west1.firebasedatabase.app
+FCM HTTP v1 API enabled (Sender ID 765131472287) — push uses admin.messaging() (v1); no legacy server key. Auth providers enabled: Google + Anonymous.
+storage bucket gs://carmel-kinneret.firebasestorage.app, sender 765131472287
+bundle/package com.carmelkinneret.app (both iOS & Android)
+Web app config + Google Sign-In OAuth clients present.
+Branding (from carmel-kinnertSite.html, a Wix site — read targeted only)
+Name: שביל כרמל-כנרת, RTL Hebrew.
+Palette: terracotta #D68C45, forest green #2C6E49, deep green #2A3C2C, accents #60D394 / #FFCF56 / #A6E1F1, danger #df3131, near-black #212121, bg #fef6ed.
+Asset extraction (pull all images/sources into a folder — requested)
+The site references 6 unique Wix-hosted images (no inline base64). Step 0 of the build downloads every asset into a committed assets/brand/ folder (so nothing hot-links Wix):
+
+applicationBuild/assets/brand/   ← mobile uses these
+firebaseFunction/web/public/brand/  ← admin web copy (or shared import)
+Base URLs to fetch (strip the /v1/fill/... transform suffix to get originals):
+
+…/media/8a229a_bc0ebb3623a94f1ea65c87df70bd2c4c~mv2.png — trail logo ("לוגו שביל")
+…/media/8a229a_c011432136f34ebf90bf08d92771a245~mv2.jpg
+…/media/8a229a_56c3570e4b794a3da1734a4cd80addc7~mv2.jpg
+…/media/8a229a_7de476ee49c04655847a1dd4f5913771~mv2.jpg — כנרת-וכרמל
+…/media/8a229a_ab68b1451b5a4f418e856f064477ce65~mv2.png
+…/media/8a229a_b4df70cbfd924e808e03b7f96cf12971~mv2.png — google-maps icon
+A scripts/pull-assets.sh (curl loop) downloads them + records source URLs in assets/brand/SOURCES.md. The trail logo also becomes app icon / splash source.
+
+Hebrew text + live-site data extraction → JSON (requested)
+Two sources feed one canonical content JSON:
+
+(a) Local HTML — scripts/extract-hebrew.mjs parses carmel-kinnertSite.html (cheerio, streamed — not fully loaded) for all visible Hebrew strings (text, alt, title, aria-label, meta) → src/content/he.json (siteTitle, values, ui, raw[]).
+
+(b) Live site scrape — scripts/scrape-site.mjs pulls the official site https://www.carmel-kinneret.org and its 13 station subpages (confirmed via the dynamic sitemap …/dynamic-p-ylvyvt-bshbyl_*-sitemap.xml) → src/content/stations.json with the full per-station schema scraped verbatim: title, value, region, location (full address), openingHours, needsBooking, paid, contactName, contactPhone, aboutPlace (על המקום), whatYouDo (מה עושים בתכלס), tieToKarmelKinneret, imageUrl, sourceUrl. The 13 station source URLs (verbatim):
+
+/p-ylvyvt-bshbyl/הצלת-מזון            /p-ylvyvt-bshbyl/כנסיית-סנטה-אנה
+/p-ylvyvt-bshbyl/אירוח-אצל-וויפקי     /p-ylvyvt-bshbyl/טיפוח-השביל-בעין-דור
+/p-ylvyvt-bshbyl/קהילת-הבוסתן         /p-ylvyvt-bshbyl/גינה-קהילתית-הושעיה
+/p-ylvyvt-bshbyl/גמ"ח-אחותי           /p-ylvyvt-bshbyl/מועדונית-שקד
+/p-ylvyvt-bshbyl/בית-תמחוי-בהושעיה    /p-ylvyvt-bshbyl/בית-אחווה
+/p-ylvyvt-bshbyl/גן-הבית              /p-ylvyvt-bshbyl/ניקוי-וגיזום-ביער-הכרמל
+/p-ylvyvt-bshbyl/ציפור-הנפש
+Confirmed examples (already fetched): כנסיית סנטה אנה → "הדרך במנזר, ציפורי, 1791000, ישראל", hours "ראשון וחגים 9:15-12:30/16:00-18:00 … שבת 8:45-11:45", תיאום מראש: לא, בתשלום: לא; אירוח אצל וויפקי → "כעביה טבאש חג'אג'רה, ישראל", תיאום מראש: כן, בתשלום: כן, ויפקי סלאמנה 0542280909. Geocode each address → lat/lng for correct map placement.
+
+stations.json + he.json are the single source of truth for the stations/values Firestore seed and all copy (mobile + web). Re-runnable to refresh from the live site.
+A matching en.json skeleton is generated for future localization.
+Up-to-date library versions (verified via web, June 2026)
+Mobile (Expo SDK 56) — verified versions (June 2026): expo 56.0.12, RN 0.85.2, React 19.2.3, expo-maps ~56.0.7. Install everything with npx expo install <pkg> so each lib resolves to the SDK-56-correct version (never hand-pin). Sources: Expo SDK 56, SDK 56 changelog, SDK reference.
+
+expo ~56, expo-router ~56 (file-based routing, replaces React Navigation imports), React 19.2 / RN 0.85, New Architecture on.
+@react-native-firebase/{app,auth,firestore,database,storage,functions,messaging,analytics,app-check} latest (v22+) — native modules. MUST use the modular (tree-shakable) API — namespaced API is REMOVED in v22. See RNFirebase v22 migration / v23. I.e. import { getApp } from '@react-native-firebase/app', getAuth(app), onAuthStateChanged(auth, cb), getFirestore(app), collection(db,'feed'), query/where/getDocs, getDatabase(app), ref(db,'live/'+uid), onValue(ref, cb), httpsCallable(getFunctions(app),'passTorch'). No firebase.auth() / firestore().collection() chained calls anywhere.
+Auth: @react-native-google-signin/google-signin (Google) + RNFirebase signInAnonymously (Anonymous). (No Apple — only Google + Anonymous per console.)
+Maps (BOTH libraries — DECIDED):
+react-native-maps — the primary, rich interactive map (user trail map + admin God-Mode): custom animated logo/value markers, per-type marker views, the synced AmazingCardSlider-style carousel, viewport culling, animateToRegion, alert-radius circles — i.e. everything in the "Map UX" section that needs full custom-view control. Uses the existing Google Maps API key on both iOS & Android for visual parity. Source: react-native-maps (Expo).
+expo-maps (~56.0.7, ALPHA) — Expo's first-party map for preview/static maps (station detail-sheet "show on map", profile, share cards). Read the bundled SDK doc (expomapsdk.txt); key facts that shape usage:
+Separate components per platform: AppleMaps.View (iOS) / GoogleMaps.View (Android) — switch on Platform.OS. Apple Maps on iOS (no key), Google Maps on Android (needs the Android Maps SDK key + Google Cloud setup), iOS 17+.
+Markers are a declarative markers={[...]} array — NOT custom child views. A marker takes coordinates, title, id, and icon (a SharedRef<'image'>); Apple additionally supports systemImage/monogram/tintColor. So per-type marker icons are done via prebuilt icon images (our assets/markers/), and value/torch/hiker styling is encoded in those icons — no animated React views on the marker here.
+Interaction is callback + imperative: onMarkerClick, onMapClick, onCameraMove; ref.selectMarker(id,{moveCamera,zoom}) and ref.setCameraPosition(...). Supports circles (alert radii), polylines (trail route), polygons, uiSettings, properties (isMyLocationEnabled), color scheme.
+Built-in location-permission config plugin (requestLocationPermission, locationPermission) — set the Hebrew NSLocationWhenInUseUsageDescription here too.
+Alpha caveat: expect breaking changes; we pin the version and keep expo-maps behind the abstraction so a breaking release can't ripple through the app.
+src/map/ abstraction wraps both behind one interface (Marker, Region, onPress, selectMarker, setCamera) so each screen picks a backend without leaking specifics: rich screens → react-native-maps (animated custom markers + carousel), preview/static → expo-maps (declarative). Set iOS deployment target 17 (expo-build-properties) and the Google Maps key + Google Cloud "Maps SDK for Android" for both.
+Location & geofencing: expo-location (foreground + background updates, geofencing) + expo-task-manager (background task + startGeofencingAsync for station/alert regions).
+Deep linking: expo-linking (custom scheme + Universal/App Links) — every expo-router path is deep-linkable (see Deep linking section); links from pushes, web, and external sources.
+Internet / connectivity: expo-network + @react-native-community/netinfo (detect online/offline, gate server calls, offline banner) — INTERNET/ACCESS_NETWORK_STATE perms.
+Push notifications (expo-notifications, full local + remote):
+Setup: request permission with rationale, configure a notification handler + Android channel, register for a push token (getDevicePushTokenAsync for FCM/APNs since we use native Firebase), store it at users/{uid}.pushToken, refresh on change.
+Geo-placed LOCAL: geofence enter (on-device via expo-location regions / expo-task-manager) schedules a local notification for the station mission / admin alert.
+Geo-placed REMOTE: Cloud Functions fan out FCM (HTTP v1 API — enabled; Sender ID 765131472287) pushes via the Admin SDK (admin.messaging(), which uses FCM v1) to the tokens of users whose live position is inside an admin alert/NFR radius (server-side, see geofence/triggers.ts), so alerts reach users even with the app closed.
+Deep-link: tapping a notification routes to the relevant station/mission via expo-router.
+Sources: expo-notifications, push setup, location geofencing.
+Tracking transparency: expo-tracking-transparency — show the iOS ATT prompt (requestTrackingPermissionsAsync) before any analytics/tracking; gate analytics on consent.
+Media library: expo-media-library (~56.0.7) — save captured mission/torch photos to a "שביל כרמל-כנרת" device album; class-based API (Asset/Album/Query), write-only + granularPermissions:['photo']. (Legacy MediaLibrary.*Async deprecated — per medialibsdk.txt.)
+Camera: expo-camera (~56.0.8) — in-app CameraView for capturing mission/torch photos (front/back, flash/torch, zoom) instead of always leaving to the picker; photos saved to cache then uploaded + optionally saved via media-library.
+Sensors / step count: expo-sensors Pedometer (~56.0.6) — count steps while the hiker holds the torch / walks a segment, complementing GPS distance (better effort signal, works when GPS is noisy). Feeds the torch km counter & personal stats. NSMotionUsageDescription (Hebrew) for Core Motion; Android activity-recognition handled by the plugin.
+Sharing: expo-sharing — native share sheet for "עזרו לנו להפיץ את האור" (share a feed post, station, or the app) — isAvailableAsync() guarded.
+Keep awake: expo-keep-awake — keep the screen on during an active torch-carry / live map session so tracking isn't interrupted (used sparingly, toggled off when idle to save battery).
+Assets: expo-asset — bundle/preload the brand images, marker icons, and Lottie files so they're available instantly at runtime.
+Motion & feel: react-native-reanimated, react-native-gesture-handler, lottie-react-native (flame/celebration/SOS animations), expo-haptics (tactile feedback), expo-image-manipulator (compress before upload), optional moti.
+expo-image, expo-image-picker, expo-av (audio alerts), expo-linear-gradient, expo-font (load Noto Sans Hebrew Bold+Regular — the exact faces used by carmel-kinnertSite.html — plus Wix Madefor fallback), expo-splash-screen, expo-blur, react-native-svg, @shopify/flash-list, react-native-reanimated, react-native-gesture-handler, react-native-safe-area-context, react-native-screens.
+Cloud Functions (2nd gen, Node 22) — sources: firebase-functions npm, firebase-admin npm, 2nd-gen docs
+
+firebase-functions ^7.2.5, firebase-admin ^14.0.0, TypeScript, engines.node: "22" + runtime: nodejs22 (Node 22 LTS — supported Functions runtime; local dev tooling runs on Node 24 LTS).
+v2 modular imports: firebase-functions/v2/https, /v2/firestore, /v2/database, /v2/scheduler.
+Web Admin — Vite + React 19 + TypeScript + Firebase JS SDK ^11 (modular); map via @vis.gl/react-google-maps; React Query/Zustand for live subscriptions; built to dist/ and deployed to Firebase Hosting. Sources: Firebase JS modular, Hosting.
+
+Repository layout
+hackathon/
+├─ applicationBuild/   # Expo mobile app (User + in-app Admin, TSX)   → github.com/elladror/App.git
+├─ firebaseFunction/   # Cloud Functions (TS, 2nd gen, nodejs22) + rules + hosting config
+│                      #                                            → github.com/elladror/Firebase.git
+└─ web/  (new)         # Vite + React 19 + TS web God-Mode dashboard → github.com/elladror/Web.git
+Git remotes (each folder = its own repo — provided by user):
+
+applicationBuild/ → git remote add origin https://github.com/elladror/App.git
+firebaseFunction/ → git remote add origin https://github.com/elladror/Firebase.git
+web/ → git remote add origin https://github.com/elladror/Web.git
+The web admin lives in its own web/ repo (not nested) but still deploys to the same Firebase project's Hosting (firebase.json hosting.public points at the built web/dist, or the web repo carries its own firebase.json targeting project carmel-kinneret). Admin exists in both the mobile app and the web dashboard.
+
+Note on the existing folders: applicationBuild/ and firebaseFunction/ currently contain only a .git (empty/stale) — there is no old Firebase code to migrate; we scaffold fresh with the current tooling. The only pre-existing config to reuse is the Firebase credentials files (GoogleService-Info.plist, google-services.json) and the project IDs.
+
+Part A — Cloud Functions backend (firebaseFunction/)
+Project (exact identifiers — confirmed by user):
+
+Project name carmel-kinneret, Project ID carmel-kinneret, project number 765131472287
+GCP parent org organizations/388359784190, public name project-765131472287, support email tzevethakaton@gmail.com.
+Setup workflow (run inside firebaseFunction/), source: Functions get-started:
+
+npm install -g firebase-tools     # latest CLI (already present on this machine)
+firebase login
+firebase use carmel-kinneret      # bind to the exact project ID
+firebase init                     # select: Functions (TS), Firestore, Realtime Database,
+                                  #   Storage, Hosting (public dir = ../web/dist, SPA rewrite),
+                                  #   Emulators.
+npm --prefix ../web run build     # build the web admin SPA (separate web/ repo)
+firebase deploy                   # deploy functions + all rules + Hosting (web admin)
+A committed .firebaserc pins {"projects":{"default":"carmel-kinneret"}} so every firebase deploy targets the right project.
+functions/package.json sets "engines": {"node": "22"}; v2 funcs declare runtime via the CLI default (nodejs22).
+functions/src/ modules (all TS):
+
+index.ts — re-exports.
+admin/setAdmin.ts — onCall setAdmin (caller must already have role:admin; enforceAppCheck) → setCustomUserClaims(uid,{role:'admin'}). Plus a one-off scripts/bootstrap-admin.ts (Admin SDK) to grant the first admin.
+iot/ingest.ts — onRequest HTTP API POST /ingest: IoT shirt sensors push {deviceId, lat, lng, speed, ts, secret}. Validates a shared secret/HMAC, rate-limits, writes to RTDB live/{deviceId} with source:"sensor". (The "dumb sensor = same pin as phone" requirement.)
+torch/relay.ts — onCall takeTorch (proximity + transaction lock) and dropTorch (validate segment km via anti-cheat, add to community/totalKm, leave the torch waiting at the drop coords, append torch/history); optional scheduler auto-drop after long idle; admin resetTorch. No-recursion guard on any torch write.
+geofence/triggers.ts — onDocumentCreated/onValueWritten for admin-placed NFRs/alerts; find users whose live position is within the radius, look up their users/{uid}.pushToken, and fan out FCM pushes via admin.messaging().sendEachForMulticast(...) (received by expo-notifications). Batched + deduped; respects per-run maxInstances.
+missions/takeHome.ts — onCall completeTrail: cross-reference visited stations → matched take-home action (e.g., Reut station → elderly-volunteering link).
+antiCheat/validate.ts — speed/teleport sanity checks on position writes; flag impossible km.
+auth/onCreate.ts — auth trigger (identity.beforeUserCreated / onInit): on every new user (Google or anonymous) create a users/{uid} profile with default role:"user", capture isAnonymous, name/photo (if Google). Custom claim defaults to user.
+lib/secrets.ts — defineSecret for IoT shared secret, FCM keys.
+Rules: Firestore + RTDB rules so users write only their own live node; admins (custom claim role:admin) can write NFRs/alerts; IoT path writable only by the function (admin SDK).
+
+firebase.json wires functions, firestore (firestore.rules), database (database.rules.json), storage (storage.rules), hosting (public: ../web/dist, SPA rewrite ** → /index.html), and emulators.
+
+Part B — Mobile app (applicationBuild/) — Expo SDK 56, expo-router, TSX
+Config: new app.json (or app.config.ts) modeled on resmarket app.json but trimmed to this project:
+
+name "שביל כרמל-כנרת", slug carmel-kinneret, scheme carmelkinneret, newArchEnabled: true, RTL extras.
+App icon & logo (correct, from the trail brand): the trail logo pulled in step 0 (assets/brand/trail-logo.png) is processed into the required icon set: icon = ./assets/icon.png (1024×1024, no alpha, padded on the brand background #fef6ed/ #2C6E49), iOS handles the rounding; Android adaptive icon = foregroundImage (logo, safe-zone padded) + backgroundColor: "#2C6E49"; web.favicon. Splash (expo-splash-screen) uses the trail logo fetched from carmel-kinnertSite.html (step 0 → assets/brand/trail-logo.png → assets/splash.png) centered on #2C6E49. In-app header/hero render the full-color trail logo. The earlier newGo.png/androidGo.png from resmarket are NOT reused — assets come only from this project's brand. A scripts/gen-icons step (or sharp) emits the sized variants so iOS/Android/web all get a correct, crisp icon.
+iOS bundleIdentifier / Android package = com.carmelkinneret.app; googleServicesFile → the existing plist / google-services.json (move into repo root).
+plugins: expo-router, @react-native-firebase/app (+ /auth, /firestore, /database, /storage, /functions, /messaging, /analytics, /app-check), expo-maps, react-native-maps, expo-location, expo-image-picker, expo-notifications, @react-native-google-signin/google-signin, expo-tracking-transparency, expo-splash-screen (HTML-fetched logo on #2C6E49), expo-font (Noto Sans Hebrew), and expo-build-properties configured the current RNFirebase+Expo way (verified, June 2026):
+["expo-build-properties", {
+  "ios": {
+    "useFrameworks": "static",
+    "forceStaticLinking": ["RNFBApp","RNFBAuth","RNFBFirestore","RNFBDatabase",
+      "RNFBStorage","RNFBFunctions","RNFBMessaging","RNFBAnalytics","RNFBAppCheck"],
+    "deploymentTarget": "17.0"
+  },
+  "android": { "compileSdkVersion": 35, "targetSdkVersion": 35 }
+}]
+Current correct RNFirebase + Expo connection (this replaces the old folder's stale setup):
+Install everything with npx expo install @react-native-firebase/app @react-native-firebase/auth ….
+Requires a dev build — expo-dev-client + EAS; cannot run in Expo Go (custom native code). app.json declares ios.googleServicesFile/android.googleServicesFile (the existing plist + google-services.json) and ios.bundleIdentifier/android.package = com.carmelkinneret.app.
+Modular API only (v22 removed namespaced) — getApp(), getAuth(app), getFirestore(app), getDatabase(app), etc.
+Sources: RNFirebase + Expo, Expo using Firebase, expo-build-properties.
+extra.eas.projectId — created via eas init (placeholder until run).
+Permissions, usage-description text & privacy manifests (full + correct — requested): All permission prompts are written in Hebrew, app-specific, and only what the features need:
+
+Location (When-In-Use + Always/Background — DECIDED: both): e.g. NSLocationWhenInUseUsageDescription = "האפליקציה משתמשת במיקום כדי להציג את מיקומך בשביל כרמל-כנרת ולהפעיל משימות בנקודות הציון", NSLocationAlwaysAndWhenInUseUsageDescription = "אפשר מעקב מיקום ברקע כדי לקבל משימות והתראות בזמן אמת לאורך השביל גם כשהאפליקציה סגורה" — via expo-location plugin (locationWhenInUse/Always, isIosBackgroundLocationEnabled:true, isAndroidForegroundServiceEnabled:true).
+Camera / Photos: NSCameraUsageDescription / NSPhotoLibraryUsageDescription = "כדי לצלם ולשתף תמונות מהמסע בפיד הקהילתי" (expo-image-picker photosPermission/cameraPermission), plus NSPhotoLibraryAddUsageDescription = "כדי לשמור את תמונות המסע לאלבום שלך" (expo-media-library, write-only). Android 13+: declare granular READ_MEDIA_IMAGES in the media-library plugin to match the requested granularPermissions.
+Microphone: only if audio capture is used — otherwise omitted (least-privilege).
+Notifications: expo-notifications runtime ask with rationale copy before requesting.
+Tracking (ATT): NSUserTrackingUsageDescription (Hebrew) = "נשתמש בנתוני שימוש כדי לשפר את החוויה בשביל ולהתאים תוכן" via expo-tracking-transparency; tracking only after consent.
+Motion (pedometer): NSMotionUsageDescription (Hebrew) = "נשתמש בחיישן הצעדים כדי למדוד את המאמץ שלך לאורך השביל" (expo-sensors); Android activity-recognition via the sensors plugin.
+iOS privacyManifests (PrivacyInfo.xcprivacy): declare NSPrivacyAccessedAPICategoryUserDefaults (reason CA92.1), …FileTimestamp (C617.1), …SystemBootTime (35F9.1), …DiskSpace (E174.1) as required by Apple; plus collected-data types (coarse/precise location, photos, user id) with purposes — required for App Store.
+Android permissions: INTERNET, ACCESS_NETWORK_STATE, ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION, ACCESS_BACKGROUND_LOCATION, FOREGROUND_SERVICE, FOREGROUND_SERVICE_LOCATION, POST_NOTIFICATIONS, CAMERA, READ_MEDIA_IMAGES, VIBRATE — each justified by a feature; nothing extraneous (AD_ID only if analytics needs it).
+ITSAppUsesNonExemptEncryption: false. A PRIVACY.md documents data collected, purpose, retention, and the SOS/location behavior for store review + the org.
+eas.json — full build profiles created (development, iOS, Android, preview, production): Source: EAS Build configuration. Concrete file:
+
+{
+  "cli": { "version": ">= 16.0.0", "appVersionSource": "appConfig" },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development",
+      "ios": { "simulator": true, "resourceClass": "m-medium" },
+      "android": { "buildType": "apk", "gradleCommand": ":app:assembleDebug" }
+    },
+    "development-device": {
+      "extends": "development",
+      "ios": { "simulator": false }
+    },
+    "ios": {
+      "extends": "production",
+      "platform-note": "iOS-only release build (App Store / ad-hoc)",
+      "ios": { "resourceClass": "m-medium" }
+    },
+    "android": {
+      "extends": "production",
+      "platform-note": "Android-only release build",
+      "android": { "buildType": "app-bundle" }
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "ios": { "simulator": false },
+      "android": { "buildType": "apk" }
+    },
+    "production": {
+      "channel": "production",
+      "autoIncrement": true,
+      "android": { "buildType": "app-bundle" }
+    }
+  },
+  "submit": { "production": {} }
+}
+Build commands documented in README: eas build -p ios --profile development, eas build -p android --profile development, ... --profile ios, ... --profile android, eas build --profile production --platform all. eas init sets extra.eas.projectId.
+
+Source structure (app/ file-based routing + src/):
+
+src/firebase/ — native @react-native-firebase singletons (auth, db=RTDB, firestore, storage, functions, messaging).
+src/theme/ — colors (the palette above), fonts, RTL setup (I18nManager).
+src/auth/ — Google + Anonymous sign-in only (both enabled in the console; no email/password, no Apple). AuthProvider exposing user + role (custom claim). Uses modular RNFirebase: getAuth(app), GoogleSignin → signInWithCredential(auth, GoogleAuthProvider.credential(idToken)), and signInAnonymously(auth). Anonymous users can later link to Google (linkWithCredential) to keep their uid, km, and feed history.
+app/_layout.tsx — root: auth gate + RTL + splash.
+app/(auth)/login.tsx.
+app/(user)/ — index (map+missions), feed (קהילה/גלריה), torch, stations (כל הפעילויות + מזרחי/מערבי filters + station cards), about (מי אנחנו — Kinneret & Carmel story), profile, _layout (tabs). Plus top-level actions surfaced from the site: הרשמה למרוץ (race registration), תמיכה בעמותה/תרומה (donate link), צור קשר (contact), שיתוף (share the light). Global SOS floating button (always mounted) → Linking tel:101.
+app/(admin)/ — in-app Admin / God-Mode (field admins), admin-only via role guard (_layout.tsx redirects non-admins): map (live pins — phones + IoT sensors, no visual distinction), nfr (place/edit station missions on the map), alerts (fire GPS/audio alerts to a radius), leaderboard (runner speeds + community km), stations (manage seed). Admin guard reads the custom claim from the ID token, never a client flag.
+src/location/ — expo-location + expo-task-manager background task: throttled write of live position to RTDB live/{uid}; startGeofencingAsync regions for stations + admin alert radii → on enter, fire a geo-placed local notification + NFR mission modal.
+src/notifications/ — expo-notifications setup (permission ask w/ rationale, push token → users/{uid}.pushToken for server fan-out, geofence-triggered local notifications).
+src/net/ — expo-network/NetInfo connectivity gate + offline banner.
+src/features/torch/, src/features/missions/, src/features/feed/ (FlashList feed, image upload to Storage), src/features/takeHome/.
+The same role flag decides whether a logged-in account lands in (user) or (admin).
+
+Deep linking (full coverage — every path) : expo-router gives typed deep links for every screen automatically; we wire all three entry mechanisms so any path is reachable from a link, a notification, or the web:
+
+Custom scheme carmelkinneret://… (set in app.json scheme) + Universal/App Links (https://carmel-kinneret.web.app/… and applinks: / Android intentFilters with autoVerify) via expo-linking so links open the installed app or fall back to web.
+Linkable routes (examples — every path is deep-linkable): …/station/[id] (open a specific station card), …/mission/[stationId] (open its NFR task), …/feed/[postId], …/torch (current torch state), …/takehome/[ruleId], …/profile, …/sos; admin: …/admin/map?focus=[liveId], …/admin/nfr/[id], …/admin/alert/[id], …/admin/leaderboard. A central linking/route map documents them all.
+Notification → deep link: every push/local notification carries a data.url (e.g. carmelkinneret://mission/hoshaya); tapping routes there via expo-router + Notifications.addNotificationResponseReceivedListener.
+Geo/location deep links: station/alert links can include coords (…/station/[id]?lat=&lng=) so the map centers on that point; admin live-pin links focus a device on the God-Mode map.
+Web admin mirrors the same path structure (React Router) so admin URLs are shareable.
+Cold-start + warm-start handled (Linking.getInitialURL / useURL), auth-gated links resume after login; apple-app-site-association + assetlinks.json served from Hosting.
+Part C — Admin capabilities (secure) — in-app and web dashboard
+Admin features exist in two clients sharing one secure backend: the mobile app's (admin) route group (admins in the field) and a web God-Mode dashboard (web/ repo, Vite + React 19 + TS + Firebase JS SDK) deployed to Firebase Hosting. Both use the same secure write-path; neither writes privileged data directly. Admin privilege is enforced at three layers so it is genuinely secure:
+
+Identity: admin = Firebase custom claim role:"admin" in the signed ID token. Granted only server-side via a guarded setAdmin callable (caller must already be admin) + a one-off bootstrap script for the first admin. Clients cannot self-promote; the (admin) UI is gated on the claim, but the UI gate is convenience only — real enforcement is below.
+Write path: admins never write privileged data directly. Placing NFRs, firing alerts, editing stations, moving the torch, accruing km all go through onCall Cloud Functions that re-check request.auth.token.role === 'admin' server-side (403 otherwise), enforceAppCheck: true. Functions use the Admin SDK to write.
+Rules backstop: Firestore/RTDB rules independently require request.auth.token.role == 'admin' for nfrs/alerts/stations/torch; community/leaderboard are function-only. So even a forged client request is rejected by rules.
+In-app admin (mobile) uses react-native-maps (same as user map) subscribing to RTDB live/* — phones and IoT sensor pins render identically. Admin actions call the callables above.
+
+Web Admin dashboard (web/ repo → Firebase Hosting):
+
+Vite + React 19 + TypeScript + Firebase JS SDK ^11 (modular); Google sign-in; the same custom-claim guard (route guard reads getIdTokenResult().claims.role).
+Full-screen God-Mode map (@vis.gl/react-google-maps) subscribing to RTDB live/* (onValue) — moving pins for phones + IoT sensors, value-colored station markers.
+Side panel: live גלריה photo feed + Leaderboard (runner speeds + community km), Firestore onSnapshot with bounded queries.
+Controls: place/edit NFRs, fire GPS/audio alerts to a radius, define take-home, manage stations — all via the same httpsCallable functions (never direct privileged writes).
+App Check (reCAPTCHA Enterprise) on the web client. Brand: terracotta/forest theme, Noto Sans Hebrew, RTL, trail logo from web/public/brand/.
+Build: npm run build → dist/; deploy: firebase deploy --only hosting.
+מירוץ הלפיד — Virtual Torch Relay (exact flow, per the org's spec)
+The torch is a shared community km-counter that only ONE person can hold at a time. It is not auto-passed — it waits on the map at the exact GPS point where the last holder dropped it, until any stranger physically reaches that spot and picks it up.
+
+State (RTDB): torch/active: { status:'waiting'|'held', lat, lng, holderId?, holderName?, holderPhoto?, heldSince?, segmentStartLat?, segmentStartLng?, droppedAt }; community/totalKm (the עמותה's shared "km bank"); torch/history/{ts}: { holderId, km, from, to, at }.
+
+Step-by-step (exactly as specified):
+
+הלפיד ממתין על השביל: on app open, the user sees a torch icon on the map at a fixed point — where yesterday's last hiker dropped it (status:'waiting').
+איסוף הלפיד: if the user is physically within ~tens of metres of the torch's GPS (on-device distance check vs torch/active.lat/lng), a prominent "קח את הלפיד" button appears. Tapping calls takeTorch callable → an RTDB transaction flips status:'held', sets holderId/heldSince/segmentStart. Locked to her — nobody else in the country can take it; everyone else's map shows "🔥 הלפיד בתנועה עם מטייל אחר".
+ההליכה המשותפת: as she walks, the app measures her distance (on-device, throttled) — combining GPS displacement with expo-sensors Pedometer step count for a robust effort signal even when GPS is noisy; a live counter shows "צעדת עם הלפיד 3.2 ק"מ — הוספת למאמץ הקהילתי!". Her live position also moves the torch marker on everyone's map.
+סיום מקטע והנחת הלפיד: she taps "הנח את הלפיד" → dropTorch callable: (a) her segment km are added to community/totalKm (validated server-side, anti-cheat — no teleport/impossible speed), shown on the web dashboard "בנק הקילומטרים"; (b) the torch icon "falls" at her exact current coordinates (status:'waiting', new lat/lng) and waits there. Append to torch/history.
+הזר שממשיך את המסורת: hours/days later a complete stranger arrives at that area, opens the app, sees the torch waiting at the same point, taps "קח את הלפיד", and accrues km from that point onward. The chain continues.
+What the app requires (the org's checklist — all covered):
+
+Torch icon on the map that relocates to wherever the last holder left it.
+A stateful button: "קח את הלפיד" ⇄ "הנח את הלפיד".
+A simple proximity check (am I close enough to pick it up?).
+A distance counter while holding, that sends the total to the server on drop.
+Notes: IoT shirt runners can also hold/carry it (ingest sets the holder). Admins can reset/relocate a stuck torch from God-Mode (claim-guarded callable) — e.g. if a holder never drops it; an optional scheduled function auto-drops it at the last known point after a long idle so it never gets stuck on one person. UI: Lottie flame on the marker, haptic on take/drop, a feed post auto-created on each drop so the קהילה follows the journey; the no-trigger-loop guards from the cost section apply to all torch writes.
+
+קהילה — Community hub (highlight: feed, notifications, image upload, integrations)
+The קהילה is the social heart that ties every feature together — a real-time, interactive feed.
+
+Feed (גלריה): feed/{id}: {authorId, authorName, authorPhoto, stationId?, value?, text, imageUrl, likes, commentCount, createdAt}; rendered with FlashList (paged, bounded query), pull-to-refresh, live onSnapshot for new posts.
+Image capture + upload (full flow): in-app expo-camera CameraView (or expo-image-picker to pick from library) → client-side compress (expo-image-manipulator) → upload to Storage feed/{uid}/{id}.jpg with progress UI → write the feed doc with the download URL. Storage rules enforce owner + image/* + size.
+Save to device gallery (expo-media-library): offer "שמור לתמונות" — save the mission/torch photo into a dedicated "שביל כרמל-כנרת" album so hikers keep their memories. Uses the current class-based API (per bundled medialibsdk.txt): Asset.create(fileUri) then Album.create('שביל כרמל-כנרת',[asset]) / album.add(asset) (the MediaLibrary.*Async functions are deprecated — use the Asset/Album/Query classes, or …/legacy only if forced). Request write-only, photo-granular permission: usePermissions({ writeOnly:true, granularPermissions:['photo'] }). Hebrew NSPhotoLibraryAddUsageDescription; Android 13+ granular media perms declared in the plugin.
+Interactivity: like / comment (Firestore subcollection), tap author → profile, tap station tag → that station card; optimistic UI with Reanimated like-burst + haptics.
+Notifications: posting from a station mission, receiving the torch, or an admin alert can fan out push (FCM v1) to relevant users; a new featured post can notify the community. Tapping any community notification deep-links to the exact post (carmelkinneret://feed/[id]).
+Integrations across the app (the קהילה is the connective tissue):
+Missions → feed: completing an NFR auto-creates a community post (photo + חוויה), tagged with the station's value color/icon.
+Torch → feed: every hand-off posts to the feed; the holder appears on the map + leaderboard.
+Take-home → feed: sharing a completed take-home action posts an inspiration card.
+Leaderboard/tally: community totalKm and top contributors are shown in-feed + on the admin/web God-Mode side panel (same data).
+Admin/web: the same feed streams into the web God-Mode dashboard side panel live.
+Full UI/UX: value-colored cards, RTL, Noto Sans Hebrew, skeleton loaders, empty states, smooth list animations, image lightbox, and a persistent "share your moment" FAB.
+Animation, haptics & flows (premium feel — requested)
+Animation: react-native-reanimated + react-native-gesture-handler for 60fps transitions; Lottie (lottie-react-native) for the torch flame, SOS pulse, mission-complete celebration, and onboarding; Moti (optional) for declarative micro-interactions; expo-blur/expo-linear-gradient for depth; shared-element-style screen transitions via expo-router. Map markers animate in; the torch marker glows/pulses.
+Haptics: expo-haptics — light tick on tab/press, success haptic on photo posted / torch acquired / mission complete, warning on SOS confirm, error on failed action.
+Flows (polished, guided): first-run onboarding (values intro + permission rationales in Hebrew, sequenced so each OS prompt has context), mission flow (geofence → animated modal → camera → caption → post → confetti), torch flow (receive push → animated accept → carry → pass), SOS flow (long-press/confirm → call), completion flow (mark stations → take-home reveal). Loading/empty/error/offline states designed for every screen.
+Map — markers, item types, press flows, filters & optimizations
+Modeled on the resmarket reference (FullScreenMap.js, AmazingCardSlider.js, AmazingCardList.js) — a polished, viewport-optimized map — adapted to this app's entity types.
+
+Distinct marker types (each looks different visually):
+
+התנדבות / value stations — pin shaped + colored by value category (the 6-value palette), with the value icon; value chip color encodes meaning at a glance. Different per value.
+אדם / hiker (phone) — round avatar marker (user photo / initials) with a subtle ring.
+רץ / IoT sensor — distinct runner glyph marker (so admins tell sensor vs phone apart — though both are "live").
+🔥 לפיד (torch) — animated flame marker (Lottie/pulse), status:'waiting' vs 'held' look.
+התראת אדמין / alert radius — translucent circle overlay + center icon.
+המשתמש עצמו — native "my location" dot.
+Press flows (different modal per type):
+
+Tap a station (התנדבות/value) → station detail sheet (the full card: מה עושים בתכלס, הקשר לכרמל וכנרת, hours, payment, contact tel:, value tag, photo, "התחל משימה").
+Tap a person/hiker → a different, lighter modal: name, photo, status, km contributed, "follow on map" — no station fields. (Exactly the "press a person ≠ press a התנדבות" ask.)
+Tap the torch → torch status modal (hold/distance, "קח/הנח את הלפיד" if in range).
+Tap a sensor/runner → runner stats modal (speed, segment) — admin-focused.
+Selecting any marker animates it (scale-up + bring-to-front + slight rotate/opacity, per the reference's parallel animations) and centers the map on it (animateToRegion-equivalent).
+Synced card carousel (like AmazingCardSlider): a horizontal, snap-scrolling card strip above the map; the centered card ↔ selected marker stay in sync (tap marker → scroll card; swipe card → select+center marker). Cards scale/fade with scroll; snapToInterval, decelerationRate, getItemLayout.
+
+Filters & sort (top bar like the reference): search bar + filter button with count badge opening a bottom-sheet filter modal:
+
+Filter by value (אהבת הארץ / צדק / התנדבות / עזרה לזולת / ראיית האחר / קיום משותף), by region (איזור מזרחי / מערבי), by status (פתוח עכשיו, חינם/בתשלום, מצריך תיאום), and by type (stations / people / torch).
+Sort: by distance from me, by trail order (Carmel→Kinneret), by value, by recently active.
+Map ⇄ List toggle (like MapListToggleSwitch): list view = FlashList of station cards with the same filters/sort; selecting a list item focuses it on the map.
+Performance optimizations (carried from the reference):
+
+Viewport culling — only render markers whose coords fall in the current region bounds (onRegionChangeComplete → bounds check), so 100+ stations/hikers stay smooth.
+Memoized markers (React.memo + custom comparator), cached coordinates (useMemo), throttled region updates, tracksViewChanges=false after image load, FlashList for lists, initialNumToRender/maxToRenderPerBatch tuning, animated values stored in refs.
+Live layers (hikers/torch) subscribe to RTDB with bounded listeners and the same throttling as writes — no listener storms (ties to the cost-safety section).
+Two-library split (informed by the expo-maps SDK doc): rich interactive screens (user map + admin God-Mode) use react-native-maps — it's the only one of the two that supports custom <Marker> child views, so all animated logo/value markers, the synced carousel, viewport culling, selection scale/rotate, and radius circles live here. expo-maps (alpha, declarative markers[] + icon images, imperative selectMarker/setCameraPosition) powers lightweight preview/static maps (detail-sheet "show on map", profile, share). Both sit behind src/map/; the per-type look on expo-maps comes from prebuilt marker icon images, not animated views.
+
+Trail activities & values (פעילויות לפי ערכי השביל) — modeled + mapped
+The trail's activities are organized by the five trail values (ערכי השביל). These seed a Firestore stations/{id} collection AND map placement. Each station carries its value category (drives marker color/icon on the map and the NFR/take-home matching) and a geo point.
+
+Value categories (from the site's own headings — each gets a palette color + icon): אהבת הארץ · צדק · התנדבות · עזרה לזולת · ראיית האחר · הכרה · חינוך · שיתוף פעולה. (Final station↔value tagging taken verbatim from carmel-kinnertSite.html during the extraction step, not guessed.)
+
+Seed stations (stations/{id}) = the 13 numbered "תחנות נתינה וחברה" listed in the "Full context" section above, with the fixed station-card schema (מה עושים בתכלס, הקשר לכרמל וכנרת, מיקום, שעות פתיחה, תיאום מראש, בתשלום, איש קשר). All text/contacts/hours are taken verbatim from he.json (step 0) — not paraphrased or guessed.
+
+Each station doc (schema mirrors the site card exactly):
+
+stations/{id}: {
+  number,                       // 1..13
+  name,                         // e.g. "בית תמחוי - הושעיה"
+  value: 'loveOfLand'|'justice'|'volunteering'|'helpingOthers'|'seeingOther'|'coexistence',
+  region: 'east'|'west',        // איזור מזרחי / מערבי filter
+  whatYouDo,                    // מה עושים בתכלס
+  tieToKarmelKinneret,          // הקשר לכרמל וכנרת
+  locationText, lat, lng,       // מיקום ההתנדבות + geocoded point for map placement
+  openingHours,                 // שעות פתיחה
+  needsBooking: boolean,        // מצריך תיאום מראש
+  paid: 'yes'|'no'|'symbolic',  // בתשלום
+  contactName, contactPhone,    // איש קשר לתיאום פעילות (tappable tel:)
+  nfrTaskId?, takeHomeRuleId?,  // mission + take-home links
+  imageUrl
+}
+Map placement (mobile (user)/index + (admin)/map): stations render as colored markers by value category (5-color legend from the palette below), correctly geo-located along the trail polyline. Hitting a station's geofence fires its NFR mission; the admin map shows the same stations as the live-pins layer underneath.
+
+Note: real lat/lng for each station will be geocoded during build (some names like ציפורי repeat — deduped/disambiguated). Placeholders flagged until confirmed against the org's data / the trail page in carmel-kinnertSite.html.
+
+Full context from the site (read all Hebrew — authoritative)
+This is a memorial trail. שביל כרמל-כנרת is a 100 km social-experiential commemoration trail along שביל ישראל, created by משפחת גת + העמותה למורשת כנרת וכרמל גת to honor כנרת גת and her daughter כרמל גת of Kibbutz Be'eri — Kinneret murdered at home on 7.10, her daughter Carmel abducted and murdered in Hamas captivity in Gaza after 11 months. The trail invites walkers to connect to the values that guided their lives. Tone of the whole app must be respectful, warm, hopeful ("רוח של חירות, חיבור ותקווה") — never gamified-flippant about the memorial.
+
+Mission (מטרות השביל): strengthen community involvement, social resilience, lasting positive impact; remember Kinneret & Carmel's story; promote צדק, אהבת הארץ, עזרה לזולת; encourage people to act together for social goals. Tagline: "ללכת בדרכן, לנשום את ערכיהן".
+
+Core values (verbatim, with the site's own descriptions — drive station tags/colors):
+
+אהבת הארץ — חיבור עמוק לאדמה ולתרבות המקומית
+צדק — מחויבות למוסר וליושר
+התנדבות — רצון לעזור ולתמוך בקהילות ובפרטים
+עזרה לזולת — דאגה לרווחת אחרים, במיוחד במצבים קשים
+ראיית האחר — הסתכלות על האדם כאדם
+קיום משותף / שיתוף פעולה — לעודד אנשים לפעול יחד למען מטרות חברתיות
+The 13 stations are "תחנות נתינה וחברה" — each has a fixed content schema mirrored exactly from the site (this becomes the stations doc + the station-card UI): title (numbered), מה עושים בתכלס (what you actually do), הקשר לכרמל וכנרת (tie to their values), מיקום ההתנדבות, שעות פתיחה, מצריך תיאום מראש (advance booking y/n), בתשלום (paid y/n/symbolic), איש קשר לתיאום פעילות (name + phone), value tag, region (איזור מזרחי/מערבי). The 13 (with their value emphasis):
+
+ציפור הנפש — תעסוקה לאנשים עם צרכים מיוחדים (אמירה 052-8454663 area / contact per site)
+ניקוי וגיזום שבילים בהר הכרמל — חניון שביל ישראל ממזרח לעוספיא (התנדבות, ימים ב-ד, חינם)
+בית אחווה — בית אבות סיעודי-שיקומי, קיבוץ יגור (עזרה לזולת; אילנה שטנגל 054-5618858)
+גן הבית - הרדוף — התנדבות חקלאית (8:00-חשכה, בתשלום; יאיר בן סירא 050-6923727)
+מדאפה בכעביה / וויפקי סלאמנה — שיח קיום משותף (קיום משותף; 054-2280909)
+הצלת מזון - אדמה לאדם — מיון תוצרת (צדק; אילה 052-8454663, סמלי)
+כנסיית סנטה אנה - ציפורי — היכרות עם דת אחרת (ראיית האחר; שעות מפורטות)
+בית תמחוי - הושעיה — בישול לנזקקים (התנדבות)
+מועדונית שקד - הושעיה — ילדים/נוער עם צרכים מיוחדים (יובל 054-7727066)
+גמ"ח הבגדים "אחותי" - הושעיה — מיון בגדים (התנדבות)
+הגינה הקהילתית - הושעיה — גינת ירק קהילתית (אהבת הארץ)
+גינה קהילתית נוף הגליל / קהילת הבוסתן — קהילה יהודית-ערבית (קיום משותף; תרומה)
+טיפוח השביל - עין דור — עבודה משותפת יהודים וערבים (תמר 050-8729912) (All text/contacts/hours come verbatim from he.json extracted in step 0 — not paraphrased.)
+Top-level site actions to surface in-app: הרשמה למרוץ (race registration), תמיכה בעמותה / תרומה (donate/support), כל הפעילויות / איזור מזרחי / מערבי (filter stations), contact (יש לכם שאלה? מוזמנים ליצור איתנו קשר), share ("עזרו לנו להפיץ את האור..."), and footer credit © 2026 העמותה למורשת כנרת וכרמל גת.
+
+UI/UX — faithful to the site + every promptsStart.txt need
+Design language extracted from carmel-kinnertSite.html (the authority):
+
+Tagline / hero: "שביל כרמל-כנרת" + "ללכת בדרכן, לנשום את ערכיהן" (mother-daughter values).
+Typography: Noto Sans Hebrew (Bold for headings, Regular for body) + Wix Madefor as the body face — bundled via expo-font (Noto Sans Hebrew from Google Fonts). RTL throughout.
+Value taxonomy (from the site's own headings — supersedes the earlier 5-guess): אהבת הארץ · צדק · התנדבות · עזרה לזולת · ראיית האחר · הכרה · חינוך · שיתוף פעולה. Each value = a color + icon chip; stations are tagged and filtered by these.
+Station card content mirrors the site exactly: name, description (e.g. "בית תמחוי בתוך היישוב הושעיה אשר מכין אוכל לנזקקים"), איש קשר לתיאום פעילות (contact + phone, tappable tel:), בתשלום (payment) flag, value tag, photo.
+Site nav → in-app sections (reused as content tabs): מי אנחנו · לוח זמנים · גלריה (feed) · רשימת משתתפים · תוצאות (leaderboard) · תקנון · מידע כללי.
+User experience (maps 1:1 to promptsStart.txt פרק 1):
+
+Hero/home: trail map (terracotta/forest theme) with value-colored station markers + the live torch position; hero shows the tagline and community totalKm.
+המדריך הדיגיטלי (NFR): background geofence → on station arrival a mission modal pops (value-themed) with the station's task; user takes a photo + writes a חוויה → posts to the גלריה feed everyone sees (Storage upload).
+מירוץ הלפיד הווירטואלי: a "העבר את הלפיד" action hands the torch to the next hiker ahead; a live banner shows who holds it + community km climbing.
+הפתעות מההנהלה: crossing a hidden admin radius triggers a push/alert (and optional audio via expo-av) with the message.
+סיום והמשכיות (take-home): trail-complete screen → mark stations visited → server matches a משימת המשך לבית (e.g., visited רעות → elderly-volunteering link), shown as a card.
+מעטפת בטיחות (SOS): a persistent floating SOS button on every screen → one tap dials 101 (Linking tel:101), with confirm.
+Admin experience (maps 1:1 to promptsStart.txt פרק 2 — in-app God Mode):
+
+מפת ה-Live: full-bleed map, moving pins for phones + IoT sensors (identical markers).
+שליטה אקטיבית: tap-to-place NFRs, draw alert radii and fire GPS/audio alerts, define take-home messages, manage stations — all via secure callables, reflected live.
+לוח הבקרה: side feed of latest גלריה photos + Leaderboard (runner speeds + community km).
+Branding & content from carmel-kinnertSite.html (reference)
+The Wix HTML is the source of truth for colors, copy, and connections and is cross-referenced throughout: the palette below is extracted from it; activity/value text and any station↔value↔take-home links present on the site are mirrored into the stations / takeHomeRules seed data; downloaded imagery (above) comes from it. Map value-marker colors: התנדבות #D68C45, אהבת הארץ #2C6E49, קיום משותף #60D394, ראיית האחר #A6E1F1, צדק #FFCF56 (final mapping confirmed against the site during build).
+
+Data model (summary)
+RTDB (live, europe-west1): live/{id}: {lat,lng,speed,ts,source:"phone"|"sensor",name}, torch/active: {holderId, segmentKm, since}, torch/history/*, community/totalKm.
+
+Firestore users/{uid} (secured collection for all users — Google & anonymous):
+
+users/{uid}: {
+  uid,
+  role: 'user' | 'admin',          // SERVER-controlled via custom claim; client can never set it
+  provider: 'google' | 'anonymous',
+  isAnonymous: boolean,
+  displayName?, photoURL?, email?,  // from Google; null for anonymous
+  stationsVisited: string[],        // station ids → drives take-home matching
+  totalKm: number,                  // personal accrual (function-written for torch km)
+  createdAt, lastActiveAt
+}
+Doc id = the Firebase Auth uid (so it works identically for Google and anonymous accounts). Rules (below): a user may read all profiles but write only their own doc and only non-privileged fields — role, totalKm, and leaderboard are never client-writable. Created by the auth/onCreate function so every account (incl. anonymous) gets a correct profile.
+
+Other Firestore: feed/{id}, nfrs/{id}: {lat,lng,radius,title,task,active}, alerts/{id}: {lat,lng,radius,message,audioUrl}, stations/{id}, leaderboard (derived), takeHomeRules/{station}.
+
+Security model (hardened — requested)
+Sources: App Check for Cloud Functions, Custom claims & rules, Callable functions.
+
+Principle: the client is never trusted. RTDB/Firestore rules are written deny-by-default; all privileged writes (NFRs, alerts, torch transfer, km accrual, IoT pins) go only through Cloud Functions using the Admin SDK, never direct client writes. Each rules file ships as a documented .md in the repo plus the live .rules/.json.
+
+Admin role = Firebase custom claim (not a Firestore field)
+Admin is granted by a custom claim role:"admin" set server-side (one-off setCustomUserClaims script / callable guarded by an existing admin). Clients cannot self-promote — the claim lives in the signed ID token.
+Rules check request.auth.token.role == 'admin' (Firestore) and auth.token.role === 'admin' (RTDB). Functions check request.auth.token.role server-side.
+Cloud Functions — secure header / request handling
+Callable functions (onCall): set enforceAppCheck: true and consumeAppCheckToken where one-time; reject !request.auth (401) and request.auth.token.role !== 'admin' for admin ops (403). Auth + App Check arrive in the request automatically — no manual header parsing for callables.
+IoT HTTP ingest (onRequest, sensors can't do Firebase Auth): require a secret via header Authorization: Bearer <IOT_SECRET> (or HMAC X-Signature of body+timestamp), IOT_SECRET stored via defineSecret (never in code/env files). Verify with constant-time compare, reject stale timestamps (replay protection), enforce per-device rate limit, restrict CORS, and validate payload shape before any RTDB write.
+Enable App Check (Play Integrity on Android, App Attest/DeviceCheck on iOS) so only genuine app instances reach callables and Firestore/RTDB/Storage.
+Anti-cheat (antiCheat/validate.ts) runs on the server: reject teleport/impossible-speed position writes so nobody fakes km (the אביב requirement).
+Firestore rules (shape — full version in firebaseFunction/firestore.rules + SECURITY.md)
+match /users/{uid} {
+  allow read: if request.auth != null;
+  allow update: if request.auth.uid == uid
+        && !request.resource.data.diff(resource.data)
+              .affectedKeys().hasAny(['role','totalKm','uid']); // can't self-promote or fake km
+  allow create: if request.auth.uid == uid
+        && request.resource.data.role == 'user';                // server trigger normally creates it
+  allow write: if isAdmin();
+}
+match /feed/{id}      { allow read: if request.auth != null;
+                         allow create: if request.auth.uid == request.resource.data.authorId;
+                         allow update, delete: if isAdmin(); }
+match /nfrs/{id}      { allow read: if request.auth != null; allow write: if isAdmin(); }
+match /alerts/{id}    { allow read: if request.auth != null; allow write: if isAdmin(); }
+match /stations/{id}  { allow read: if request.auth != null; allow write: if isAdmin(); }
+match /takeHomeRules/{id}{ allow read: if request.auth != null; allow write: if isAdmin(); }
+match /leaderboard/{id}{ allow read: if request.auth != null; allow write: if false; } // functions only
+function isAdmin(){ return request.auth.token.role == 'admin'; }
+// default: allow read,write: if false;
+RTDB rules (shape — full version in firebaseFunction/database.rules.json + SECURITY.md)
+{ "rules": {
+  ".read": false, ".write": false,
+  "live": {
+    ".read": "auth != null",
+    "$id": { ".write": "auth != null && auth.uid === $id && !data.child('source').exists()",
+             ".validate": "newData.hasChildren(['lat','lng','ts'])" } },   // phone writes own node only
+  "torch":     { ".read": "auth != null", ".write": false }, // take/drop only via callable (Admin SDK)
+  "community": { ".read": "auth != null", ".write": false } } }   // km bank accrued by function only
+(IoT sensor pins under live/{deviceId} are written by the ingest function via Admin SDK, which bypasses rules — clients can never spoof a source:"sensor" pin.)
+
+Storage rules
+Photos under feed/{uid}/… writable only by that uid, readable by signed-in users, with content-type (image/*) + size limits.
+
+Cost efficiency & loop safety (no accidental runaway calls — requested)
+Firebase's classic money-leaks are trigger loops (a function writes to the path it triggers on) and unthrottled client traffic (location writes, listener storms). Guards built in:
+
+No function recursion / write-loops:
+
+Functions never write to the path that triggers them. Torch take/drop are callables that write via the Admin SDK; any onValueWritten('torch/active') listener writes only to a different node (e.g. community/totalKm, torch/history) with an idempotency/short-circuit guard (if (before?.status === after?.status && sameCoords) return;) so it can't re-fire itself.
+Position-validation triggers write a flag/derived doc, not the watched live/* node.
+Where a function must update its own collection, it diffs and early-returns when unchanged.
+Throttled client → server traffic:
+
+Location: expo-location uses distanceInterval + timeInterval (e.g. ≥25 m / ≥10 s) so RTDB live/{uid} updates are paced, not per-GPS-tick; debounced in JS too.
+Geofence checks run on-device (compare position to cached NFR/alert radii) — a function is only called when a boundary is actually crossed, not continuously.
+Torch / km accrual are explicit user actions (single callable), never polled.
+Leaderboard/feed use bounded queries (limit, pagination via FlashList), not full-collection listeners; detach listeners on unmount/blur.
+Server-side ceilings (defense in depth):
+
+All callables/HTTP funcs set maxInstances + small concurrency/timeoutSeconds/memory so a bug or attack can't fan out to unbounded billable instances.
+IoT ingest has per-device rate limiting + payload validation before any write.
+A Firebase budget alert (e.g. Cloud Billing budget) is documented in SECURITY.md as a hard backstop, plus Blaze spend caps where available.
+App Check blocks non-app traffic from ever reaching billable endpoints.
+Verification (added below): an emulator test asserts the torch trigger does not re-fire on its own write, and that a burst of GPS updates collapses to throttled RTDB writes.
+
+Build order
+Pull assets + content: run scripts/pull-assets.sh → 6 Wix images into assets/brand/ (+ SOURCES.md); run scripts/extract-hebrew.mjs → src/content/he.json (all Hebrew strings) + en.json skeleton; derive palette/branding.ts + stations/takeHomeRules seed from he.json and carmel-kinnertSite.html.
+firebaseFunction/: init functions (TS/nodejs22) + Hosting, write hardened rules (firestore.rules, database.rules.json, storage.rules) + SECURITY.md + firebase.json, implement IoT ingest (secure header) + torch + geofence + anti-cheat + auth trigger + setAdmin script + cost ceilings (maxInstances). Seed stations (by value). App Check. Deploy.
+applicationBuild/: scaffold Expo SDK 56 + expo-router, app.json/eas.json (perms + privacy manifests), theme/RTL/fonts (Noto Sans Hebrew), auth (Google+Anonymous), modular @react-native-firebase singletons. Move google-services.json + plist in; logo for icon/splash.
+Mobile User flow (expo-maps + value-colored station markers → geofenced missions/notifs → feed → torch → SOS) → background location/geofence task.
+Mobile Admin flow (in-app God-Mode: live map, place NFRs, fire alerts, leaderboard) with the secure callable write-path + claim guard.
+Web Admin (web/ repo): Vite + React 19 + TS + Firebase JS SDK, God-Mode map + feed + leaderboard + admin controls (same callables) → build + firebase deploy --only hosting.
+Testing (unit + integration — required)
+Sources: Jest Expo, Functions unit/integration testing, Rules emulator testing.
+
+Mobile (applicationBuild/): jest-expo + @testing-library/react-native.
+
+Unit: torch/relay math & validation, anti-cheat speed calc, value→color/icon mapping, station seeding, geofence distance helpers, RTL/i18n, auth/role reducer.
+Integration / component: login → role routing, mission modal on geofence enter, feed post flow (mocked Storage), SOS dials tel:101, map renders station markers by value.
+@react-native-firebase mocked; npm test, coverage threshold enforced; runs in CI.
+Cloud Functions (firebaseFunction/functions/): Jest + TS + firebase-functions-test.
+
+Unit (offline): IoT payload validation, HMAC/secret + constant-time compare, replay rejection, torch transfer logic, take-home matching, anti-cheat rules — pure logic, mocked Admin SDK.
+Integration (emulator): against firebase emulators — callable auth/role enforcement (401/403), IoT POST /ingest happy + rejected-secret paths writing to RTDB, onDocumentCreated NFR fan-out, custom-claim admin path.
+Security rules: @firebase/rules-unit-testing against the emulator — assert deny-by-default, user can't set own role/totalKm, non-admin can't write nfrs/alerts/stations, user writes only own live/{uid}, no client can write community/leaderboard. (This is how we prove the rules.)
+
+Loop / cost safety (emulator): assert the torch/active trigger does not recurse on its own write (idempotency guard), and a unit test confirms GPS bursts collapse to throttled RTDB writes (distance/time gate). Confirms no accidental infinite server calls.
+
+In-app admin (part of the mobile suite): component tests for the (admin) guard (non-admin redirected), map pin layer (phone vs sensor both shown), and that admin actions call the secure callables (mocked) rather than writing directly.
+
+Web Admin (web/): Vitest + React Testing Library — claim-based route guard, God-Mode map subscription rendering, pin layer (phone vs sensor), admin controls call the secure callables (mocked Firebase JS SDK).
+
+CI: GitHub Actions in each repo (App / Firebase / Web) running its suite + rules tests + expo-doctor + lint.
+
+Verification
+Functions: firebase emulators:start; curl -X POST .../ingest with a fake sensor → see pin in RTDB; takeTorch near the waiting torch locks it, dropTorch adds segment km to community/totalKm and leaves the torch waiting at the drop coords; place an NFR doc → user in radius gets the mission/notification; anti-cheat rejects a teleport write.
+Mobile: npx expo run:ios / EAS development build on device → Google + Anonymous login, role routing, expo-maps shows trail + live position, geofence pops a mission and a geo-placed notification, photo posts to feed, torch pass, SOS dials 101, background location updates with app backgrounded, offline banner appears with no network.
+In-app Admin: log in as an admin (custom claim) → (admin) map shows moving pins (drop a phone + curl a sensor → both appear), placing an NFR reflects on a user device within seconds; a non-admin account cannot reach (admin) and its forged writes are rejected by rules.
+Web Admin: npm --prefix web run dev then firebase deploy --only hosting → Hosting URL loads, admin Google login + claim guard, God-Mode map shows phones+sensors, controls fire alerts/NFRs reflected on devices; non-admin is blocked.
+Auth: Google sign-in and Anonymous sign-in both work; anonymous→Google link keeps the uid.
+Deep links: npx uri-scheme open carmelkinneret://station/hoshaya --ios opens the right screen (cold + warm start); a notification tap and a Universal Link (https://carmel-kinneret.web.app/ station/hoshaya) both route correctly and resume after login.
+Tests: npm test green in all three packages (mobile jest-expo, functions jest+firebase-functions-test, web vitest) + rules-unit-testing suite passes against emulator.
+Cost/loop safety: emulator confirms torch trigger doesn't recurse; GPS bursts throttle.
+Up-to-date check: npx expo-doctor (mobile) and npm outdated (functions + web) clean; all expo libs installed via npx expo install; no RNFirebase deprecation warnings (modular API).
+Assets/perms: assets/brand/ populated, icon/splash use the trail logo (no Wix hot-link); all permission prompts in Hebrew; PrivacyInfo.xcprivacy + PRIVACY.md present.
+Notes / open items
+Maps = BOTH (DECIDED): react-native-maps (Google on iOS+Android via the existing key) for the rich interactive user + God-Mode maps with animated custom markers + carousel; expo-maps (alpha, Apple iOS / Google Android, iOS 17+, declarative icon-image markers via assets/markers/) for lightweight preview/static maps. Unified behind src/map/. expo-maps is version-pinned due to alpha breaking-change risk; its built-in location plugin carries the Hebrew NSLocationWhenInUseUsageDescription. Confirmed against the bundled expomapsdk.txt.
+Marker/logo assets (assets/markers/): generate a distinct marker icon per type — 6 value pins (color+icon), hiker avatar ring, runner/sensor glyph, torch flame (waiting/held), alert circle — derived from the brand palette + the trail logo. Listed as a build asset alongside app icon/splash.
+Location = Background + While-Using (DECIDED): Always/Background enabled for geofence missions & alerts when backgrounded; store-review justification documented in PRIVACY.md.
+eas.json projectId, FCM, IoT secret, and App-Check keys are set at run time via eas init / firebase functions:secrets:set (cannot run in plan mode).
+Admin role bootstrap: set custom claim role:admin on your account via scripts/bootstrap-admin.ts.

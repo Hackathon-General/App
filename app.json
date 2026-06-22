@@ -1,0 +1,113 @@
+{
+  "expo": {
+    "name": "שביל כרמל-כנרת",
+    "slug": "carmel-kinneret",
+    "scheme": "carmelkinneret",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2C6E49"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.carmelkinneret.app",
+      "buildNumber": "1",
+      "usesAppleSignIn": false,
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "האפליקציה משתמשת במיקום כדי להציג את מיקומך בשביל כרמל-כנרת ולהפעיל משימות בנקודות הציון.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "אפשר מעקב מיקום ברקע כדי לקבל משימות והתראות בזמן אמת לאורך השביל גם כשהאפליקציה סגורה.",
+        "NSCameraUsageDescription": "כדי לצלם ולשתף תמונות מהמסע בפיד הקהילתי.",
+        "NSPhotoLibraryUsageDescription": "כדי לבחור תמונות לשיתוף בפיד הקהילתי.",
+        "NSPhotoLibraryAddUsageDescription": "כדי לשמור את תמונות המסע לאלבום שלך.",
+        "NSMotionUsageDescription": "נשתמש בחיישן הצעדים כדי למדוד את המאמץ שלך לאורך השביל.",
+        "NSUserTrackingUsageDescription": "נשתמש בנתוני שימוש כדי לשפר את החוויה בשביל ולהתאים תוכן.",
+        "LSApplicationQueriesSchemes": ["tel", "waze"]
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          { "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults", "NSPrivacyAccessedAPITypeReasons": ["CA92.1"] },
+          { "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp", "NSPrivacyAccessedAPITypeReasons": ["C617.1"] },
+          { "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime", "NSPrivacyAccessedAPITypeReasons": ["35F9.1"] },
+          { "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace", "NSPrivacyAccessedAPITypeReasons": ["E174.1"] }
+        ]
+      }
+    },
+    "android": {
+      "package": "com.carmelkinneret.app",
+      "versionCode": 1,
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2C6E49"
+      },
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "@react-native-google-signin/google-signin",
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static",
+            "deploymentTarget": "17.0",
+            "forceStaticLinking": [
+              "RNFBApp", "RNFBAuth", "RNFBFirestore", "RNFBDatabase",
+              "RNFBStorage", "RNFBFunctions", "RNFBMessaging", "RNFBAnalytics", "RNFBAppCheck"
+            ]
+          },
+          "android": { "compileSdkVersion": 35, "targetSdkVersion": 35, "minSdkVersion": 26 }
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "אפשר מעקב מיקום ברקע כדי לקבל משימות והתראות בזמן אמת לאורך השביל.",
+          "locationWhenInUsePermission": "האפליקציה משתמשת במיקום כדי להציג את מיקומך בשביל.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      ["expo-maps", { "requestLocationPermission": true, "locationPermission": "האפליקציה משתמשת במיקום כדי להציג את מיקומך על המפה." }],
+      ["expo-image-picker", { "photosPermission": "כדי לבחור תמונות לשיתוף בפיד הקהילתי.", "cameraPermission": "כדי לצלם תמונות מהמסע." }],
+      ["expo-media-library", { "photosPermission": "כדי לשמור את תמונות המסע לאלבום שלך.", "savePhotosPermission": "כדי לשמור את תמונות המסע לאלבום שלך.", "isAccessMediaLocationEnabled": false }],
+      "expo-notifications",
+      "expo-tracking-transparency",
+      "expo-sensors",
+      ["expo-splash-screen", { "image": "./assets/splash.png", "resizeMode": "contain", "backgroundColor": "#2C6E49" }]
+    ],
+    "extra": {
+      "supportsRTL": true,
+      "forcesRTL": true,
+      "eas": { "projectId": "PLACEHOLDER_SET_BY_EAS_INIT" }
+    }
+  }
+}

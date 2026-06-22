@@ -1,0 +1,54 @@
+# Expo / React Native
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+ios/
+android/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# EAS
+# (keep eas.json; ignore local credentials)
+credentials.json
+
+# Firebase credentials (the GoogleService files ARE committed for the build,
+# but never commit service-account keys)
+serviceAccount.json
+*serviceAccount*.json
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Source HTML scrape inputs (large; data already extracted to src/content/)
+carmel-kinnertSite.html
+walkPage.html
+ulrtaPage.html
+shlihimHtml.html
+merozthPage.html
+extraContext.txt
+expomapsdk.txt
+medialibsdk.txt
+morelibs.txt
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Test / coverage
+coverage/

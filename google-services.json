@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "765131472287",
+    "firebase_url": "https://carmel-kinneret-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "carmel-kinneret",
+    "storage_bucket": "carmel-kinneret.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:765131472287:android:7d820e67cb6a4f80ff11aa",
+        "android_client_info": {
+          "package_name": "com.carmelkinneret.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "765131472287-dgfg41jjpl2bq7sh4qiav98nae9mfupi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAq2AoFcZUYhc9mSb_cu3kH-p-I_ToLTzA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "765131472287-dgfg41jjpl2bq7sh4qiav98nae9mfupi.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "765131472287-rjua77jt0hpjf2phuodgssnkivcurbkr.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.carmelkinneret.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
