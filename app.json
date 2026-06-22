@@ -155,7 +155,14 @@
           "isAccessMediaLocationEnabled": false
         }
       ],
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#2C6E49",
+          "defaultChannel": "default"
+        }
+      ],
       "expo-tracking-transparency",
       "expo-sensors",
       [
