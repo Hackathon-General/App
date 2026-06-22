@@ -4,8 +4,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { View } from 'react-native';
 import { colors } from '@/theme';
 import { SosButton } from '@/components/SosButton';
+import { useTrailServices } from '@/location/useTrailServices';
 
 export default function UserLayout() {
+  useTrailServices();
   return (
     <View style={{ flex: 1 }}>
       <Tabs
