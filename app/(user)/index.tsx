@@ -181,9 +181,9 @@ export default function MapScreen() {
         <Text style={styles.title}>{content.siteTitle}</Text>
         <View style={styles.filterBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-            <Chip label="הכל" active={filter === 'all'} color={colors.forest} onPress={() => setFilter('all')} />
+            <Chip label="הכל" icon="map-marker-multiple" active={filter === 'all'} color={colors.forest} onPress={() => setFilter('all')} />
             {VALUE_KEYS.map((k) => (
-              <Chip key={k} label={valueTheme[k].label} active={filter === k} color={valueTheme[k].color} onPress={() => setFilter(k)} />
+              <Chip key={k} label={valueTheme[k].label} icon={valueTheme[k].icon} active={filter === k} color={valueTheme[k].color} onPress={() => setFilter(k)} />
             ))}
           </ScrollView>
         </View>
@@ -397,13 +397,15 @@ export default function MapScreen() {
   );
 }
 
-function Chip({ label, active, color, onPress }: { label: string; active: boolean; color: string; onPress: () => void }) {
+function Chip({ label, icon, active, color, onPress }: { label: string; icon?: any; active: boolean; color: string; onPress: () => void }) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={[styles.chip, { backgroundColor: active ? color : '#fff', borderColor: active ? '#fff' : color }]}
+      activeOpacity={0.8}
+      style={[styles.chip, { backgroundColor: active ? color : 'rgba(255,255,255,0.95)', borderColor: active ? color : 'transparent' }]}
     >
-      <Text numberOfLines={1} style={[styles.chipTxt, { color: active ? '#fff' : color }]}>{label}</Text>
+      {!!icon && <MaterialCommunityIcons name={icon} size={14} color={active ? '#fff' : color} />}
+      <Text numberOfLines={1} style={[styles.chipTxt, { color: active ? '#fff' : colors.ink }]}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -418,9 +420,9 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 22, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: spacing.sm },
   filterBar: { height: 40 },
-  filters: { gap: spacing.sm, alignItems: 'center' },
-  chip: { height: 32, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  chipTxt: { fontWeight: '700', fontSize: 13 },
+  filters: { gap: spacing.sm, alignItems: 'center', flexDirection: 'row-reverse', paddingHorizontal: 2 },
+  chip: { flexDirection: 'row-reverse', gap: 5, height: 34, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, elevation: 2 },
+  chipTxt: { fontWeight: '800', fontSize: 13 },
   mapWrap: {
     flex: 1,
     marginTop: -spacing.md,
@@ -492,7 +494,7 @@ const styles = StyleSheet.create({
   },
   recenterTxt: { color: '#fff', fontWeight: '800', fontSize: 14, writingDirection: 'rtl' },
   // Floating controls
-  fabCol: { position: 'absolute', top: 16, right: spacing.md, gap: 10, zIndex: 10001, direction: 'ltr', alignItems: 'center' },
+  fabCol: { position: 'absolute', top: 64, right: spacing.md, gap: 10, zIndex: 10001, direction: 'ltr', alignItems: 'center' },
   zoomPill: {
     backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 22, overflow: 'hidden',
     shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 5,
