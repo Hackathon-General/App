@@ -81,28 +81,23 @@ export const StationCarousel = forwardRef<CarouselHandle, {
 
 function Card({ s, index, x, active, onPress, onWaze }: { s: S; index: number; x: SharedValue<number>; active: boolean; onPress: () => void; onWaze: () => void }) {
   const v = valueTheme[s.value];
-  // `center` = 1 when this card is dead-centered, 0 at a neighbor's position. Drives EVERYTHING
-  // off scroll position so the visually-centered card is ALWAYS the highlighted one (no state lag).
+  // Scale only off scroll position (smooth zoom). NO opacity — the highlight is the colored
+  // border/tint/scale on the active card; opacity-dimming read as "faded/stuck", so it's gone.
   const animStyle = useAnimatedStyle(() => {
     const d = x.value - index * SNAP;
-    const center = interpolate(Math.abs(d), [0, SNAP * 0.5, SNAP], [1, 1, 0], Extrapolation.CLAMP);
-    const scale = interpolate(d, [-SNAP, 0, SNAP], [0.84, 1.05, 0.84], Extrapolation.CLAMP);
-    const opacity = interpolate(Math.abs(d), [0, SNAP * 0.5, SNAP], [1, 1, 0.55], Extrapolation.CLAMP);
-    const translateY = interpolate(d, [-SNAP, 0, SNAP], [16, 0, 16], Extrapolation.CLAMP);
-    return { transform: [{ scale }, { translateY }], opacity };
-  });
-  const cardStyle = useAnimatedStyle(() => {
-    const center = interpolate(Math.abs(x.value - index * SNAP), [0, SNAP * 0.5], [1, 0], Extrapolation.CLAMP);
-    return {
-      borderWidth: 1 + center * 2,
-      shadowOpacity: 0.08 + center * 0.32,
-      shadowRadius: 5 + center * 13,
-    };
+    const scale = interpolate(d, [-SNAP, 0, SNAP], [0.86, 1.04, 0.86], Extrapolation.CLAMP);
+    const translateY = interpolate(d, [-SNAP, 0, SNAP], [14, 0, 14], Extrapolation.CLAMP);
+    return { transform: [{ scale }, { translateY }] };
   });
 
   return (
-    <Animated.View style={[{ width: CARD_W }, animStyle]}>
-      <Animated.View style={[styles.card, { borderColor: v.color, backgroundColor: '#fff', shadowColor: v.color }, cardStyle]}>
+    <Animated.View style={[{ width: CARD_W, opacity: active ? 1 : 0.85 }, animStyle]}>
+      <View style={[
+        styles.card,
+        active
+          ? { borderColor: v.color, borderWidth: 2.5, backgroundColor: v.tint, shadowColor: v.color, shadowOpacity: 0.4, shadowRadius: 14, elevation: 12 }
+          : { borderColor: colors.line, borderWidth: 1, backgroundColor: '#fff', shadowOpacity: 0.08, shadowRadius: 5, elevation: 3 },
+      ]}>
         <Pressable style={styles.press} onPress={onPress}>
         <View style={[styles.stripe, { backgroundColor: v.color, width: active ? 10 : 5 }]} />
         <View style={styles.inner}>
@@ -128,7 +123,7 @@ function Card({ s, index, x, active, onPress, onWaze }: { s: S; index: number; x
           </View>
         </View>
         </Pressable>
-      </Animated.View>
+      </View>
     </Animated.View>
   );
 }
