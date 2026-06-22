@@ -3,10 +3,14 @@ import { Tabs } from 'expo-router';
 import { colors } from '@/theme';
 import { TabIcon } from '@/components/TabIcon';
 import { useTrailServices } from '@/location/useTrailServices';
+import { useGeofenceMission } from '@/features/missions/useGeofenceMission';
+import { NfrMissionModal } from '@/components/NfrMissionModal';
 
 export default function UserLayout() {
   useTrailServices();
+  const { active, dismiss } = useGeofenceMission();
   return (
+    <>
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -46,5 +50,8 @@ export default function UserLayout() {
         <Tabs.Screen name="about" options={{ href: null }} />
         <Tabs.Screen name="info" options={{ href: null }} />
       </Tabs>
+      {/* Geofence mission — blocking pop-up when reaching a values station (active NFR). */}
+      <NfrMissionModal station={active} onClose={dismiss} />
+    </>
   );
 }
