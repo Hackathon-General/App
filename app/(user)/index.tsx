@@ -119,14 +119,23 @@ export default function MapScreen() {
     );
   };
 
-  // Zoom in/out around the current camera (uses zoom delta on the camera).
+  // Zoom in/out. Works on both providers: scale the current region's deltas (Apple Maps doesn't
+  // expose camera.zoom), with a camera-zoom fast path when available (Google Maps).
+  const regionRef = useRef<Region>(INITIAL_REGION);
   const zoom = async (dir: 1 | -1) => {
     Haptics.selectionAsync().catch(() => {});
-    const cam = await mapRef.current?.getCamera();
-    if (!cam) return;
-    if (cam.zoom != null) {
+    const factor = dir === 1 ? 0.5 : 2; // in → halve span, out → double
+    const cam = await mapRef.current?.getCamera().catch(() => undefined);
+    if (cam && cam.zoom != null) {
       mapRef.current?.animateCamera({ zoom: Math.max(3, Math.min(20, cam.zoom + dir)) }, { duration: 250 });
+      return;
     }
+    const r = regionRef.current;
+    mapRef.current?.animateToRegion({
+      latitude: r.latitude, longitude: r.longitude,
+      latitudeDelta: Math.max(0.002, Math.min(1.2, r.latitudeDelta * factor)),
+      longitudeDelta: Math.max(0.002, Math.min(1.2, r.longitudeDelta * factor)),
+    }, 250);
   };
 
   // "Recenter on the trail" — fit the whole Carmel→Kinneret route in view.
@@ -150,6 +159,7 @@ export default function MapScreen() {
 
   // Show "חזרה לשביל" only when the trail's bbox does NOT overlap the visible region.
   const onRegionChange = (r: Region) => {
+    regionRef.current = r; // keep latest region for delta-based zoom
     if (!trailBounds) return;
     const viewMinLat = r.latitude - r.latitudeDelta / 2, viewMaxLat = r.latitude + r.latitudeDelta / 2;
     const viewMinLng = r.longitude - r.longitudeDelta / 2, viewMaxLng = r.longitude + r.longitudeDelta / 2;
