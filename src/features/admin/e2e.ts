@@ -20,12 +20,16 @@ const TEST_ID = 'e2e-inapp-station';
  */
 export async function runAdminE2E(onStep: OnStep): Promise<{ passed: number; failed: number }> {
   let passed = 0, failed = 0;
+  console.log('[E2E] ▶ starting admin end-to-end suite');
   const step = async (name: string, fn: () => Promise<string | void>) => {
+    console.log(`[E2E] … ${name}`);
     try {
       const detail = await fn();
+      console.log(`[E2E] ✅ ${name}${detail ? ' — ' + detail : ''}`);
       onStep({ name, ok: true, detail: detail || undefined });
       passed++;
     } catch (e: any) {
+      console.warn(`[E2E] ❌ ${name} — ${e?.message ?? String(e)}`);
       onStep({ name, ok: false, detail: e?.message ?? String(e) });
       failed++;
     }
@@ -99,5 +103,6 @@ export async function runAdminE2E(onStep: OnStep): Promise<{ passed: number; fai
     return 'נוקה';
   });
 
+  console.log(`[E2E] ■ done — ${passed} passed, ${failed} failed`);
   return { passed, failed };
 }

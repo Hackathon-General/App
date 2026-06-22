@@ -32,27 +32,36 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<ContentState>(FALLBACK);
 
   useEffect(() => {
+    console.log('[Content] subscribing to Firestore (stations + content/*)…');
     // Live stations.
-    const unsubStations = onSnapshot(collection(db, 'stations'), (snap: any) => {
-      if (!snap || snap.empty || !snap.docs?.length) return; // keep fallback until seeded
-      const stations = snap.docs
-        .map((d: any) => d.data() as Station)
-        .sort((a: Station, b: Station) => (a.number ?? 0) - (b.number ?? 0));
-      setState((s) => ({ ...s, stations, loading: false }));
-    });
+    const unsubStations = onSnapshot(
+      collection(db, 'stations'),
+      (snap: any) => {
+        if (!snap || snap.empty || !snap.docs?.length) {
+          console.log('[Content] stations snapshot EMPTY → using bundled JSON fallback');
+          return;
+        }
+        const stations = snap.docs
+          .map((d: any) => d.data() as Station)
+          .sort((a: Station, b: Station) => (a.number ?? 0) - (b.number ?? 0));
+        console.log(`[Content] stations FROM FIRESTORE: ${stations.length} docs (live)`);
+        setState((s) => ({ ...s, stations, loading: false }));
+      },
+      (err: any) => console.warn('[Content] stations listener error:', err?.message ?? err)
+    );
 
     // Live singletons (event / routes / site). RNFirebase: `exists` is a property; data() may be undefined.
     const unsubEvent = onSnapshot(doc(db, 'content/event'), (d: any) => {
       const data = d?.data?.();
-      if (data) setState((s) => ({ ...s, events: { ...s.events, ...data } }));
+      if (data) { console.log('[Content] content/event FROM FIRESTORE'); setState((s) => ({ ...s, events: { ...s.events, ...data } })); }
     });
     const unsubRoutes = onSnapshot(doc(db, 'content/routes'), (d: any) => {
       const data = d?.data?.();
-      if (data) setState((s) => ({ ...s, routes: { ...s.routes, ...data } }));
+      if (data) { console.log('[Content] content/routes FROM FIRESTORE'); setState((s) => ({ ...s, routes: { ...s.routes, ...data } })); }
     });
     const unsubSite = onSnapshot(doc(db, 'content/site'), (d: any) => {
       const data = d?.data?.();
-      if (data) setState((s) => ({ ...s, site: { ...s.site, ...data } }));
+      if (data) { console.log('[Content] content/site FROM FIRESTORE'); setState((s) => ({ ...s, site: { ...s.site, ...data } })); }
     });
 
     return () => {

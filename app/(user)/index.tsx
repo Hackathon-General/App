@@ -20,6 +20,7 @@ import { content } from '@/content';
 import { useContent, type Station, type ValueKey } from '@/content/ContentProvider';
 import { StationSheet } from '@/components/StationSheet';
 import { BottomSheet } from '@/components/BottomSheet';
+import { StationCarousel } from '@/components/StationCarousel';
 import { SosButton } from '@/components/SosButton';
 import { useTorch } from '@/features/torch/useTorch';
 import { useLive } from '@/features/live/useLive';
@@ -80,10 +81,9 @@ export default function MapScreen() {
   }, [stations, filter, myPos]);
 
   const focusStation = (s: { lat: number; lng: number }) => {
-    Haptics.selectionAsync().catch(() => {});
     mapRef.current?.animateToRegion(
-      { latitude: s.lat, longitude: s.lng, latitudeDelta: 0.03, longitudeDelta: 0.03 },
-      700
+      { latitude: s.lat, longitude: s.lng, latitudeDelta: 0.012, longitudeDelta: 0.012 },
+      600
     );
   };
 
@@ -276,39 +276,14 @@ export default function MapScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Toggleable proximity carousel — tap a card → zoom to it; ordered by distance from me */}
+        {/* Snap-to-zoom proximity carousel — swipe → map zooms to the centered station */}
         {showList && (
           <View style={styles.carousel}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: spacing.md }}>
-              {orderedStations.map((s) => {
-                const v = valueTheme[s.value];
-                return (
-                  <TouchableOpacity
-                    key={s.id}
-                    style={styles.placeCard}
-                    activeOpacity={0.85}
-                    onPress={() => { focusStation(s); setSelected(stations.find((x) => x.id === s.id) ?? null); }}
-                  >
-                    <View style={[styles.placeStripe, { backgroundColor: v.color }]} />
-                    <View style={styles.placeInner}>
-                      <View style={styles.placeTop}>
-                        <View style={[styles.placeIcon, { backgroundColor: v.color }]}>
-                          <MaterialCommunityIcons name={v.icon as never} size={16} color="#fff" />
-                        </View>
-                        <Text style={styles.placeName} numberOfLines={1}>{s.number}. {s.name}</Text>
-                      </View>
-                      {'_distM' in s && (s as any)._distM != null && (
-                        <View style={styles.placeDistRow}>
-                          <MaterialCommunityIcons name="map-marker-distance" size={13} color={colors.terracotta} />
-                          <Text style={styles.placeDist}>{((s as any)._distM / 1000).toFixed(1)} ק"מ ממך</Text>
-                        </View>
-                      )}
-                      <Text style={styles.placeValue} numberOfLines={1}>{v.label}</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            <StationCarousel
+              stations={orderedStations}
+              onSnapTo={(s) => focusStation(s)}
+              onPressCard={(s) => { focusStation(s); setSelected(stations.find((x) => x.id === s.id) ?? null); }}
+            />
           </View>
         )}
       </View>
@@ -424,18 +399,6 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4, elevation: 5,
   },
   fabActive: { backgroundColor: colors.terracotta },
-  // Proximity carousel (above SOS via high zIndex)
+  // Proximity carousel container (above SOS via high zIndex)
   carousel: { position: 'absolute', bottom: 24, left: 0, right: 0, zIndex: 10000, elevation: 12 },
-  placeCard: {
-    width: 230, backgroundColor: '#fff', borderRadius: radius.md, overflow: 'hidden', flexDirection: 'row',
-    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6, direction: 'rtl',
-  },
-  placeStripe: { width: 6 },
-  placeInner: { flex: 1, padding: spacing.md, direction: 'rtl' },
-  placeTop: { flexDirection: 'row', alignItems: 'center', gap: 8, direction: 'rtl' },
-  placeIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  placeName: { flex: 1, fontWeight: '800', color: colors.ink, textAlign: 'right', writingDirection: 'rtl', fontSize: 14 },
-  placeDistRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, direction: 'rtl' },
-  placeDist: { color: colors.terracotta, fontWeight: '800', fontSize: 13 },
-  placeValue: { color: colors.muted, fontSize: 12, textAlign: 'right', marginTop: 2 },
 });
