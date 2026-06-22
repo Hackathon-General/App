@@ -23,7 +23,7 @@ export function useFeed(max = 50) {
   useEffect(() => {
     const q = query(collection(db, 'feed'), orderBy('createdAt', 'desc'), limit(max));
     const unsub = onSnapshot(q, (snap) => {
-      setPosts(snap.docs.map((d) => ({ id: d.id, ...(d.data() as object) }) as FeedPost));
+      setPosts(snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as object) }) as FeedPost));
       setLoading(false);
     });
     return () => unsub();

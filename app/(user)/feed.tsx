@@ -45,7 +45,6 @@ export default function FeedScreen() {
       ) : (
         <FlashList
           data={posts}
-          estimatedItemSize={320}
           keyExtractor={(p) => p.id}
           renderItem={({ item }) => <PostCard post={item} />}
           ListEmptyComponent={<Text style={styles.empty}>היו הראשונים לשתף רגע מהמסע ✨</Text>}

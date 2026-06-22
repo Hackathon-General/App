@@ -7,13 +7,9 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#2C6E49"
-    },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.carmelkinneret.app",
@@ -29,14 +25,37 @@
         "NSPhotoLibraryAddUsageDescription": "כדי לשמור את תמונות המסע לאלבום שלך.",
         "NSMotionUsageDescription": "נשתמש בחיישן הצעדים כדי למדוד את המאמץ שלך לאורך השביל.",
         "NSUserTrackingUsageDescription": "נשתמש בנתוני שימוש כדי לשפר את החוויה בשביל ולהתאים תוכן.",
-        "LSApplicationQueriesSchemes": ["tel", "waze"]
+        "LSApplicationQueriesSchemes": [
+          "tel",
+          "waze"
+        ]
       },
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [
-          { "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults", "NSPrivacyAccessedAPITypeReasons": ["CA92.1"] },
-          { "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp", "NSPrivacyAccessedAPITypeReasons": ["C617.1"] },
-          { "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime", "NSPrivacyAccessedAPITypeReasons": ["35F9.1"] },
-          { "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace", "NSPrivacyAccessedAPITypeReasons": ["E174.1"] }
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "35F9.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1"
+            ]
+          }
         ]
       }
     },
@@ -60,7 +79,14 @@
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.ACTIVITY_RECOGNITION",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "com.google.android.gms.permission.AD_ID"
       ]
     },
     "web": {
@@ -79,11 +105,22 @@
             "useFrameworks": "static",
             "deploymentTarget": "17.0",
             "forceStaticLinking": [
-              "RNFBApp", "RNFBAuth", "RNFBFirestore", "RNFBDatabase",
-              "RNFBStorage", "RNFBFunctions", "RNFBMessaging", "RNFBAnalytics", "RNFBAppCheck"
+              "RNFBApp",
+              "RNFBAuth",
+              "RNFBFirestore",
+              "RNFBDatabase",
+              "RNFBStorage",
+              "RNFBFunctions",
+              "RNFBMessaging",
+              "RNFBAnalytics",
+              "RNFBAppCheck"
             ]
           },
-          "android": { "compileSdkVersion": 35, "targetSdkVersion": 35, "minSdkVersion": 26 }
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 26
+          }
         }
       ],
       [
@@ -96,18 +133,47 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ],
-      ["expo-maps", { "requestLocationPermission": true, "locationPermission": "האפליקציה משתמשת במיקום כדי להציג את מיקומך על המפה." }],
-      ["expo-image-picker", { "photosPermission": "כדי לבחור תמונות לשיתוף בפיד הקהילתי.", "cameraPermission": "כדי לצלם תמונות מהמסע." }],
-      ["expo-media-library", { "photosPermission": "כדי לשמור את תמונות המסע לאלבום שלך.", "savePhotosPermission": "כדי לשמור את תמונות המסע לאלבום שלך.", "isAccessMediaLocationEnabled": false }],
+      [
+        "expo-maps",
+        {
+          "requestLocationPermission": true,
+          "locationPermission": "האפליקציה משתמשת במיקום כדי להציג את מיקומך על המפה."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "כדי לבחור תמונות לשיתוף בפיד הקהילתי.",
+          "cameraPermission": "כדי לצלם תמונות מהמסע."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "כדי לשמור את תמונות המסע לאלבום שלך.",
+          "savePhotosPermission": "כדי לשמור את תמונות המסע לאלבום שלך.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
       "expo-notifications",
       "expo-tracking-transparency",
       "expo-sensors",
-      ["expo-splash-screen", { "image": "./assets/splash.png", "resizeMode": "contain", "backgroundColor": "#2C6E49" }]
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#2C6E49"
+        }
+      ]
     ],
     "extra": {
       "supportsRTL": true,
       "forcesRTL": true,
-      "eas": { "projectId": "PLACEHOLDER_SET_BY_EAS_INIT" }
-    }
+      "eas": {
+        "projectId": "aeb4800c-48df-4d7b-b9bd-077252eebb38"
+      }
+    },
+    "owner": "lioraviv"
   }
 }
