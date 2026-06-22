@@ -7,6 +7,7 @@ import { httpsCallable } from '@react-native-firebase/functions';
 import { functions } from '@/firebase';
 import { useContent, type Station } from '@/content/ContentProvider';
 import { colors, spacing, radius, valueTheme } from '@/theme';
+import { AdminHeader } from '@/components/AdminHeader';
 
 const upsertStationFn = httpsCallable(functions, 'upsertStation');
 const deleteStationFn = httpsCallable(functions, 'deleteStation');
@@ -72,19 +73,21 @@ export default function AdminContent() {
   }
 
   return (
-    <View style={[styles.c, { paddingTop: insets.top + spacing.md }]}>
-      <Text style={styles.h}>ניהול תוכן — תחנות</Text>
-      <TouchableOpacity style={styles.seedBtn} onPress={async () => {
-        try { const r: any = await seedContentFn({}); Alert.alert('נטען', `${r?.data?.stations ?? ''} תחנות נטענו ל-Firestore.`); }
-        catch (e: any) { Alert.alert('שגיאה', e?.message ?? ''); }
-      }}>
-        <MaterialCommunityIcons name="database-import" size={18} color="#fff" />
-        <Text style={styles.addTxt}>טען/רענן תוכן ל-Firestore</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.addBtn} onPress={() => setEdit({ value: 'volunteering', region: 'east' })}>
-        <MaterialCommunityIcons name="plus" size={18} color="#fff" />
-        <Text style={styles.addTxt}>הוסף תחנה</Text>
-      </TouchableOpacity>
+    <View style={styles.c}>
+      <AdminHeader title="ניהול תוכן" subtitle={`${stations.length} תחנות · נשמר ב-Firestore`} icon="file-document-edit" />
+      <View style={styles.actionsRow}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => setEdit({ value: 'volunteering', region: 'east' })}>
+          <MaterialCommunityIcons name="plus" size={18} color="#fff" />
+          <Text style={styles.addTxt}>הוסף תחנה</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.seedBtn} onPress={async () => {
+          try { const r: any = await seedContentFn({}); Alert.alert('נטען', `${r?.data?.stations ?? ''} תחנות נטענו ל-Firestore.`); }
+          catch (e: any) { Alert.alert('שגיאה', e?.message ?? ''); }
+        }}>
+          <MaterialCommunityIcons name="database-refresh" size={18} color={colors.forest} />
+          <Text style={styles.seedTxt}>רענן</Text>
+        </TouchableOpacity>
+      </View>
       <FlashList
         data={stations}
         keyExtractor={(s) => s.id}
@@ -92,10 +95,15 @@ export default function AdminContent() {
         contentContainerStyle={{ padding: spacing.md }}
         renderItem={({ item }) => (
           <View style={styles.row}>
-            <View style={[styles.dot, { backgroundColor: valueTheme[item.value]?.color ?? colors.muted }]} />
-            <Text style={styles.rowName} numberOfLines={1}>{item.number}. {item.name}</Text>
-            <TouchableOpacity onPress={() => setEdit(item)} hitSlop={8}><MaterialCommunityIcons name="pencil" size={20} color={colors.forest} /></TouchableOpacity>
-            <TouchableOpacity onPress={() => remove(item.id)} hitSlop={8}><MaterialCommunityIcons name="trash-can-outline" size={20} color={colors.danger} /></TouchableOpacity>
+            <View style={[styles.iconBadge, { backgroundColor: valueTheme[item.value]?.color ?? colors.muted }]}>
+              <MaterialCommunityIcons name={(valueTheme[item.value]?.icon ?? 'map-marker') as never} size={16} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowName} numberOfLines={1}>{item.number}. {item.name}</Text>
+              <Text style={styles.rowSub} numberOfLines={1}>{valueTheme[item.value]?.label} · {item.region === 'east' ? 'מזרחי' : 'מערבי'}</Text>
+            </View>
+            <TouchableOpacity onPress={() => setEdit(item)} hitSlop={8} style={styles.rowAction}><MaterialCommunityIcons name="pencil" size={19} color={colors.forest} /></TouchableOpacity>
+            <TouchableOpacity onPress={() => remove(item.id)} hitSlop={8} style={styles.rowAction}><MaterialCommunityIcons name="trash-can-outline" size={19} color={colors.danger} /></TouchableOpacity>
           </View>
         )}
       />
@@ -115,12 +123,16 @@ function Field({ label, value, onChange, multiline, keyboard }: { label: string;
 const styles = StyleSheet.create({
   c: { flex: 1, backgroundColor: colors.bg, direction: 'rtl' },
   h: { fontSize: 20, fontWeight: '800', color: colors.ink, textAlign: 'center', marginBottom: spacing.sm, writingDirection: 'rtl' },
-  seedBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.forest, marginHorizontal: spacing.md, marginBottom: spacing.sm, paddingVertical: 12, borderRadius: radius.pill },
-  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.terracotta, marginHorizontal: spacing.md, paddingVertical: 12, borderRadius: radius.pill },
+  actionsRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md, paddingTop: spacing.md },
+  seedBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#fff', borderWidth: 1.5, borderColor: colors.forest, paddingVertical: 12, paddingHorizontal: 18, borderRadius: radius.pill },
+  seedTxt: { color: colors.forest, fontWeight: '800' },
+  addBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.terracotta, paddingVertical: 12, borderRadius: radius.pill },
   addTxt: { color: '#fff', fontWeight: '800' },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: '#fff', borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm },
-  dot: { width: 12, height: 12, borderRadius: 6 },
-  rowName: { flex: 1, textAlign: 'right', fontWeight: '700', color: colors.ink, writingDirection: 'rtl' },
+  iconBadge: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  rowName: { textAlign: 'right', fontWeight: '700', color: colors.ink, writingDirection: 'rtl' },
+  rowSub: { textAlign: 'right', fontSize: 12, color: colors.muted, writingDirection: 'rtl', marginTop: 1 },
+  rowAction: { padding: 4 },
   label: { fontSize: 13, fontWeight: '700', color: colors.terracotta, textAlign: 'right', writingDirection: 'rtl', marginBottom: 4, marginHorizontal: spacing.md },
   input: { backgroundColor: '#fff', borderRadius: radius.sm, padding: 12, borderWidth: 1, borderColor: colors.line, marginHorizontal: spacing.md, writingDirection: 'rtl' },
   valuePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginHorizontal: spacing.md, marginTop: spacing.sm, direction: 'rtl' },

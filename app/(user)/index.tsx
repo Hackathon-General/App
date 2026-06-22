@@ -1,15 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, ScrollView, Platform, Linking } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, PROVIDER_DEFAULT, Region } from 'react-native-maps';
+import MapView, { Marker, Polyline, type Region } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { distanceMeters } from '@/features/torch/distance';
-
-// iOS → Apple Maps (renders without a Google key); Android → Google Maps (key in manifest).
-const MAP_PROVIDER = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
+import { MAP_PROVIDER, LivePinMarkers, TorchMarker } from '@/map/markers';
 
 // Open Waze navigation to a point (mirrors the carmel-kinneret.org race-page Waze links).
 function openWaze(lat: number, lng: number) {

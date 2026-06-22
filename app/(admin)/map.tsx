@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal } from 'react-native';
-import { Platform } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, PROVIDER_DEFAULT, Region } from 'react-native-maps';
+import { View, Text, StyleSheet } from 'react-native';
+import MapView, { type Region } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
-const MAP_PROVIDER = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, radius, valueTheme } from '@/theme';
+import { colors, spacing, radius } from '@/theme';
 import { useContent } from '@/content/ContentProvider';
 import { useLive, type LivePin } from '@/features/live/useLive';
 import { useTorch } from '@/features/torch/useTorch';
+import { BottomSheet } from '@/components/BottomSheet';
+import { MAP_PROVIDER, TrailPolyline, StationMarkers, TorchMarker, LivePinMarkers } from '@/map/markers';
 
 const INITIAL: Region = { latitude: 32.72, longitude: 35.27, latitudeDelta: 0.55, longitudeDelta: 0.55 };
 
@@ -26,28 +25,10 @@ export default function AdminMap() {
   return (
     <View style={styles.container}>
       <MapView style={StyleSheet.absoluteFill} provider={MAP_PROVIDER} initialRegion={INITIAL}>
-        <Polyline coordinates={routes.waypoints.map((w) => ({ latitude: w.lat, longitude: w.lng }))} strokeColor={colors.terracotta} strokeWidth={3} />
-
-        {stations.map((s) => (
-          <Marker key={s.id} coordinate={{ latitude: s.lat, longitude: s.lng }} pinColor={valueTheme[s.value].color} title={s.name} />
-        ))}
-
-        {pins.map((p) => (
-          <Marker
-            key={p.id}
-            coordinate={{ latitude: p.lat, longitude: p.lng }}
-            pinColor={p.source === 'sensor' ? colors.sky : colors.forest}
-            onPress={() => setSel(p)}
-            title={p.name ?? p.id}
-            description={p.source === 'sensor' ? 'חיישן' : 'מטייל/ת'}
-          />
-        ))}
-
-        {torch && (
-          <Marker coordinate={{ latitude: torch.lat, longitude: torch.lng }} title="לפיד" anchor={{ x: 0.5, y: 0.5 }}>
-            <View style={styles.torchMarker}><MaterialCommunityIcons name="torch" size={20} color="#fff" /></View>
-          </Marker>
-        )}
+        <TrailPolyline waypoints={routes.waypoints} strokeWidth={3} />
+        <StationMarkers stations={stations} />
+        <LivePinMarkers pins={pins} onPress={setSel} />
+        {torch && <TorchMarker lat={torch.lat} lng={torch.lng} />}
       </MapView>
 
       <View style={[styles.hud, { paddingTop: insets.top + spacing.sm }]}>
@@ -60,33 +41,27 @@ export default function AdminMap() {
         </View>
       </View>
 
-      <Modal visible={!!sel} transparent animationType="fade" onRequestClose={() => setSel(null)}>
-        <View style={styles.backdrop}>
-          {sel && (
-            <View style={styles.pinCard}>
-              <Text style={styles.pinName}>{sel.name ?? sel.id}</Text>
-              <Text style={styles.pinKind}>{sel.source === 'sensor' ? 'חיישן IoT' : 'מטייל/ת'}</Text>
-              {sel.speed != null && <Text style={styles.pinSpeed}>מהירות: {sel.speed.toFixed(1)} מ׳/ש</Text>}
-              <Text style={styles.close} onPress={() => setSel(null)}>סגור</Text>
-            </View>
-          )}
-        </View>
-      </Modal>
+      <BottomSheet visible={!!sel} onClose={() => setSel(null)}>
+        {sel && (
+          <View style={styles.pinCard}>
+            <Text style={styles.pinName}>{sel.name ?? sel.id}</Text>
+            <Text style={styles.pinKind}>{sel.source === 'sensor' ? 'חיישן IoT' : 'מטייל/ת'}</Text>
+            {sel.speed != null && <Text style={styles.pinSpeed}>מהירות: {sel.speed.toFixed(1)} מ׳/ש</Text>}
+          </View>
+        )}
+      </BottomSheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, direction: 'rtl' },
   hud: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' },
-  hudTitle: { fontSize: 18, fontWeight: '900', color: colors.ink, textShadowColor: '#fff', textShadowRadius: 6 },
+  hudTitle: { fontSize: 18, fontWeight: '900', color: colors.ink, textShadowColor: '#fff', textShadowRadius: 6, writingDirection: 'rtl' },
   hudStatRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999 },
   hudStat: { fontSize: 13, color: colors.ink, fontWeight: '700' },
-  torchMarker: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff' },
-  backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' },
-  pinCard: { backgroundColor: '#fff', borderRadius: radius.md, padding: spacing.lg, width: 260, alignItems: 'center' },
-  pinName: { fontSize: 18, fontWeight: '800', color: colors.ink },
-  pinKind: { color: colors.terracotta, fontWeight: '700', marginTop: 4 },
+  pinCard: { padding: spacing.lg, alignItems: 'center', direction: 'rtl' },
+  pinName: { fontSize: 18, fontWeight: '800', color: colors.ink, writingDirection: 'rtl' },
+  pinKind: { color: colors.terracotta, fontWeight: '700', marginTop: 4, writingDirection: 'rtl' },
   pinSpeed: { color: colors.muted, marginTop: 4 },
-  close: { color: colors.forest, fontWeight: '800', marginTop: spacing.md },
 });
