@@ -26,7 +26,6 @@
     "@shopify/flash-list": "2.0.2",
     "expo": "~56.0.12",
     "expo-asset": "~56.0.17",
-    "expo-av": "~16.0.0",
     "expo-blur": "~56.0.3",
     "expo-build-properties": "~56.0.19",
     "expo-camera": "~56.0.8",
@@ -72,14 +71,5 @@
     "jest-expo": "~56.0.0",
     "typescript": "~6.0.3"
   },
-  "private": true,
-  "expo": {
-    "doctor": {
-      "reactNativeDirectoryCheck": {
-        "exclude": [
-          "expo-av"
-        ]
-      }
-    }
-  }
+  "private": true
 }
