@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, StyleSheet, Dimensions, Pressable } from 'react-native';
 import Animated, { useAnimatedScrollHandler, useSharedValue, useAnimatedStyle, interpolate, Extrapolation, runOnJS, type SharedValue } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -14,36 +14,50 @@ const SIDE = (SCREEN_W - CARD_W) / 2;
 
 type S = Station & { _distM?: number };
 
+export interface CarouselHandle { scrollToIndex: (i: number) => void }
+
 /**
- * Snap-scrolling station carousel. As you swipe, the centered card scales up and the map
- * zooms to that station (onSnap). Tap a card to open its sheet.
+ * Snap-scrolling station carousel. The centered card scales up AND gets a persistent colored
+ * highlight (border + glow + badge). Emits the active station live during the drag so the map
+ * marker zoom and card highlight stay in sync. Exposes scrollToIndex so tapping a marker
+ * recenters the carousel on that station.
  */
-export function StationCarousel({ stations, onSnapTo, onPressCard }: {
+export const StationCarousel = forwardRef<CarouselHandle, {
   stations: S[];
-  onSnapTo: (s: S) => void;
+  activeIndex: number;
+  onActiveChange: (i: number) => void;
   onPressCard: (s: S) => void;
-}) {
+}>(function StationCarousel({ stations, activeIndex, onActiveChange, onPressCard }, ref) {
   const x = useSharedValue(0);
-  const lastIndex = useRef(-1);
+  const scrollRef = useRef<Animated.ScrollView>(null);
+  const lastIndex = useRef(activeIndex);
+
+  useImperativeHandle(ref, () => ({
+    scrollToIndex: (i: number) => {
+      lastIndex.current = i;
+      scrollRef.current?.scrollTo({ x: i * SNAP, animated: true });
+    },
+  }), []);
 
   const notify = (i: number) => {
     if (i !== lastIndex.current && stations[i]) {
       lastIndex.current = i;
       Haptics.selectionAsync().catch(() => {});
-      onSnapTo(stations[i]);
+      onActiveChange(i);
     }
   };
 
   const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (e) => { x.value = e.contentOffset.x; },
-    onMomentumEnd: (e) => {
-      const i = Math.round(e.contentOffset.x / SNAP);
-      runOnJS(notify)(i);
+    onScroll: (e) => {
+      x.value = e.contentOffset.x;
+      // live highlight + map sync mid-drag (not only on momentum end)
+      runOnJS(notify)(Math.round(e.contentOffset.x / SNAP));
     },
   });
 
   return (
     <Animated.ScrollView
+      ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator={false}
       snapToInterval={SNAP}
@@ -53,26 +67,28 @@ export function StationCarousel({ stations, onSnapTo, onPressCard }: {
       contentContainerStyle={{ paddingHorizontal: SIDE, gap: GAP }}
     >
       {stations.map((s, i) => (
-        <Card key={s.id} s={s} index={i} x={x} onPress={() => onPressCard(s)} />
+        <Card key={s.id} s={s} index={i} x={x} active={i === activeIndex} onPress={() => onPressCard(s)} />
       ))}
     </Animated.ScrollView>
   );
-}
+});
 
-function Card({ s, index, x, onPress }: { s: S; index: number; x: SharedValue<number>; onPress: () => void }) {
+function Card({ s, index, x, active, onPress }: { s: S; index: number; x: SharedValue<number>; active: boolean; onPress: () => void }) {
   const v = valueTheme[s.value];
   const animStyle = useAnimatedStyle(() => {
     const pos = index * SNAP;
     const d = x.value - pos;
-    const scale = interpolate(d, [-SNAP, 0, SNAP], [0.9, 1, 0.9], Extrapolation.CLAMP);
-    const opacity = interpolate(d, [-SNAP, 0, SNAP], [0.6, 1, 0.6], Extrapolation.CLAMP);
-    const translateY = interpolate(d, [-SNAP, 0, SNAP], [10, 0, 10], Extrapolation.CLAMP);
-    return { transform: [{ scale }, { translateY }], opacity };
+    const scale = interpolate(d, [-SNAP, 0, SNAP], [0.88, 1, 0.88], Extrapolation.CLAMP);
+    const opacity = interpolate(d, [-SNAP, 0, SNAP], [0.5, 1, 0.5], Extrapolation.CLAMP);
+    const translateY = interpolate(d, [-SNAP, 0, SNAP], [14, 0, 14], Extrapolation.CLAMP);
+    // glow strength peaks at center
+    const glow = interpolate(d, [-SNAP, 0, SNAP], [0, 1, 0], Extrapolation.CLAMP);
+    return { transform: [{ scale }, { translateY }], opacity, shadowOpacity: 0.12 + glow * 0.28, shadowRadius: 8 + glow * 10 };
   });
 
   return (
-    <Animated.View style={[{ width: CARD_W }, animStyle]}>
-      <Pressable style={styles.card} onPress={onPress}>
+    <Animated.View style={[{ width: CARD_W }, animStyle, active && { shadowColor: v.color }]}>
+      <Pressable style={[styles.card, active && { borderColor: v.color, borderWidth: 2 }]} onPress={onPress}>
         <View style={[styles.stripe, { backgroundColor: v.color }]} />
         <View style={styles.inner}>
           <View style={styles.top}>
@@ -80,6 +96,7 @@ function Card({ s, index, x, onPress }: { s: S; index: number; x: SharedValue<nu
               <MaterialCommunityIcons name={v.icon as never} size={18} color="#fff" />
             </View>
             <Text style={styles.name} numberOfLines={1}>{s.number}. {s.name}</Text>
+            {active && <View style={[styles.activeDot, { backgroundColor: v.color }]} />}
           </View>
           {s._distM != null && (
             <View style={styles.distRow}>
@@ -95,12 +112,13 @@ function Card({ s, index, x, onPress }: { s: S; index: number; x: SharedValue<nu
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: radius.lg, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6, direction: 'rtl' },
+  card: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: radius.lg, overflow: 'hidden', borderWidth: 2, borderColor: 'transparent', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, elevation: 6, direction: 'rtl' },
   stripe: { width: 6 },
   inner: { flex: 1, padding: spacing.md },
   top: { flexDirection: 'row', alignItems: 'center', gap: 8, direction: 'rtl' },
   icon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   name: { flex: 1, fontWeight: '800', color: colors.ink, fontSize: 15, textAlign: 'right', writingDirection: 'rtl' },
+  activeDot: { width: 9, height: 9, borderRadius: 5 },
   distRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, direction: 'rtl' },
   dist: { color: colors.terracotta, fontWeight: '800', fontSize: 13 },
   value: { color: colors.muted, fontSize: 12, textAlign: 'right', marginTop: 2, writingDirection: 'rtl' },

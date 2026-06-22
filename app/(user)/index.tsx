@@ -20,7 +20,8 @@ import { content } from '@/content';
 import { useContent, type Station, type ValueKey } from '@/content/ContentProvider';
 import { StationSheet } from '@/components/StationSheet';
 import { BottomSheet } from '@/components/BottomSheet';
-import { StationCarousel } from '@/components/StationCarousel';
+import { StationCarousel, type CarouselHandle } from '@/components/StationCarousel';
+import { PulseRing } from '@/components/PulseRing';
 import { SosButton } from '@/components/SosButton';
 import { useTorch } from '@/features/torch/useTorch';
 import { useLive } from '@/features/live/useLive';
@@ -55,6 +56,8 @@ export default function MapScreen() {
   const livePins = useLive(); // everyone sharing publicly (phones + sensors), Snapchat-style
   const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
   const [showList, setShowList] = useState(false); // toggleable proximity carousel
+  const [activeIdx, setActiveIdx] = useState(0);   // carousel ↔ map highlighted station
+  const carouselRef = useRef<CarouselHandle>(null);
 
   // Track my location for proximity sorting + "center on me".
   useEffect(() => {
@@ -80,11 +83,33 @@ export default function MapScreen() {
       .map((x) => ({ ...x.s, _distM: x.d }));
   }, [stations, filter, myPos]);
 
+  // The station currently highlighted in the carousel (drives marker pulse + path-to-me).
+  const activeStation = showList ? orderedStations[activeIdx] : undefined;
+
   const focusStation = (s: { lat: number; lng: number }) => {
     mapRef.current?.animateToRegion(
       { latitude: s.lat, longitude: s.lng, latitudeDelta: 0.012, longitudeDelta: 0.012 },
       600
     );
+  };
+
+  // Carousel moved → highlight + zoom to that station.
+  const onCarouselActive = (i: number) => {
+    setActiveIdx(i);
+    const s = orderedStations[i];
+    if (s) focusStation(s);
+  };
+
+  // A station marker was tapped → open the carousel, sync it to that card, zoom in.
+  const onStationMarkerPress = (s: Station) => {
+    const i = orderedStations.findIndex((x) => x.id === s.id);
+    if (i >= 0) {
+      setShowList(true);
+      setActiveIdx(i);
+      carouselRef.current?.scrollToIndex(i);
+    }
+    focusStation(s);
+    setSelected(s);
   };
 
   const centerOnMe = () => {
@@ -186,24 +211,47 @@ export default function MapScreen() {
             );
           })}
 
+          {/* Dashed "to you" path from the highlighted station to your location */}
+          {activeStation && myPos && (
+            <Polyline
+              coordinates={[
+                { latitude: activeStation.lat, longitude: activeStation.lng },
+                { latitude: myPos.lat, longitude: myPos.lng },
+              ]}
+              strokeColor={valueTheme[activeStation.value].color}
+              strokeWidth={3}
+              lineDashPattern={[8, 8]}
+            />
+          )}
+
           {/* התנדבויות (value stations) — round value-colored badge with the value icon */}
-          {visibleStations.map((s) => (
-            <Marker
-              key={s.id}
-              coordinate={{ latitude: s.lat, longitude: s.lng }}
-              onPress={() => setSelected(s)}
-              title={s.name}
-              description={valueTheme[s.value].label}
-              anchor={{ x: 0.5, y: 1 }}
-            >
-              <View style={styles.stationMarker}>
-                <View style={[styles.stationPin, { backgroundColor: valueTheme[s.value].color }]}>
-                  <MaterialCommunityIcons name={valueTheme[s.value].icon as never} size={16} color="#fff" />
+          {visibleStations.map((s) => {
+            const isActive = activeStation?.id === s.id;
+            const vc = valueTheme[s.value].color;
+            return (
+              <Marker
+                key={s.id}
+                coordinate={{ latitude: s.lat, longitude: s.lng }}
+                onPress={() => onStationMarkerPress(s)}
+                title={s.name}
+                description={valueTheme[s.value].label}
+                anchor={{ x: 0.5, y: 1 }}
+                zIndex={isActive ? 999 : 1}
+              >
+                <View style={styles.stationMarker}>
+                  {isActive && (
+                    <View style={styles.pulseWrap} pointerEvents="none">
+                      <PulseRing size={70} color={vc} rings={2} />
+                    </View>
+                  )}
+                  <View style={[styles.stationPin, { backgroundColor: vc }, isActive && styles.stationPinActive]}>
+                    <MaterialCommunityIcons name={valueTheme[s.value].icon as never} size={isActive ? 20 : 16} color="#fff" />
+                  </View>
+                  <View style={[styles.stationTip, { borderTopColor: vc }]} />
                 </View>
-                <View style={[styles.stationTip, { borderTopColor: valueTheme[s.value].color }]} />
-              </View>
-            </Marker>
-          ))}
+              </Marker>
+            );
+          })}
           {/* Live people sharing publicly (Snapchat-style) — phones = avatar, sensors = runner */}
           {livePins
             .filter((p) => p.id !== user?.uid)
@@ -271,17 +319,26 @@ export default function MapScreen() {
           <TouchableOpacity style={styles.fab} onPress={centerOnMe}>
             <MaterialCommunityIcons name="crosshairs-gps" size={22} color={colors.forest} />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.fab, showList && styles.fabActive]} onPress={() => setShowList((v) => !v)}>
+          <TouchableOpacity style={[styles.fab, showList && styles.fabActive]} onPress={() => {
+            Haptics.selectionAsync().catch(() => {});
+            setShowList((v) => {
+              const next = !v;
+              if (next && orderedStations[0]) { setActiveIdx(0); focusStation(orderedStations[0]); }
+              return next;
+            });
+          }}>
             <MaterialCommunityIcons name={showList ? 'close' : 'view-list'} size={22} color={showList ? '#fff' : colors.forest} />
           </TouchableOpacity>
         </View>
 
-        {/* Snap-to-zoom proximity carousel — swipe → map zooms to the centered station */}
-        {showList && (
+        {/* Snap-to-zoom proximity carousel — swipe → map zooms to & pulses the centered station */}
+        {showList && orderedStations.length > 0 && (
           <View style={styles.carousel}>
             <StationCarousel
+              ref={carouselRef}
               stations={orderedStations}
-              onSnapTo={(s) => focusStation(s)}
+              activeIndex={activeIdx}
+              onActiveChange={onCarouselActive}
               onPressCard={(s) => { focusStation(s); setSelected(stations.find((x) => x.id === s.id) ?? null); }}
             />
           </View>
@@ -366,10 +423,12 @@ const styles = StyleSheet.create({
   torchMarker: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 3, elevation: 5 },
   // התנדבות — round pin with tail
   stationMarker: { alignItems: 'center' },
+  pulseWrap: { position: 'absolute', top: -19, alignItems: 'center', justifyContent: 'center', width: 70, height: 70 },
   stationPin: {
     width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: '#fff',
   },
+  stationPinActive: { width: 42, height: 42, borderRadius: 21, borderWidth: 3, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, elevation: 6 },
   stationTip: {
     width: 0, height: 0, marginTop: -2,
     borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 8,
