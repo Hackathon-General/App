@@ -28,10 +28,11 @@ export const valueTheme: Record<
   string,
   { label: string; color: string; icon: string }
 > = {
+  // Palette aligned to carmel-kinneret.org race pages.
   loveOfLand:    { label: 'אהבת הארץ',  color: '#2C6E49', icon: 'leaf' },
   justice:       { label: 'צדק',         color: '#FFCF56', icon: 'scale-balance' },
   volunteering:  { label: 'התנדבות',     color: '#D68C45', icon: 'hand-heart' },
-  helpingOthers: { label: 'עזרה לזולת',  color: '#EF6F53', icon: 'heart' },
+  helpingOthers: { label: 'עזרה לזולת',  color: '#FF8044', icon: 'heart' },
   seeingOther:   { label: 'ראיית האחר',  color: '#A6E1F1', icon: 'eye' },
   coexistence:   { label: 'קיום משותף',  color: '#60D394', icon: 'account-group' },
 };

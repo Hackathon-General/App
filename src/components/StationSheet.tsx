@@ -65,7 +65,7 @@ function Field({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg, maxHeight: '75%' },
   handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: colors.line, marginBottom: spacing.md },
-  headerRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   valueChip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.pill },
   valueChipTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
   close: { fontSize: 20, color: colors.muted },

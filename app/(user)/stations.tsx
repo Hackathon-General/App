@@ -29,18 +29,22 @@ export default function StationsScreen() {
     <View style={[styles.c, { paddingTop: insets.top + spacing.sm }]}>
       <Text style={styles.h}>{content.nav.allActivities}</Text>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-        <Chip label="הכל" active={region === 'all'} onPress={() => setRegion('all')} color={colors.forest} />
-        <Chip label={content.nav.eastRegion} active={region === 'east'} onPress={() => setRegion('east')} color={colors.forest} />
-        <Chip label={content.nav.westRegion} active={region === 'west'} onPress={() => setRegion('west')} color={colors.forest} />
-      </ScrollView>
+      <View style={styles.filterBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+          <Chip label="הכל" active={region === 'all'} onPress={() => setRegion('all')} color={colors.forest} />
+          <Chip label={content.nav.eastRegion} active={region === 'east'} onPress={() => setRegion('east')} color={colors.forest} />
+          <Chip label={content.nav.westRegion} active={region === 'west'} onPress={() => setRegion('west')} color={colors.forest} />
+        </ScrollView>
+      </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-        <Chip label="כל הערכים" active={value === 'all'} onPress={() => setValue('all')} color={colors.terracotta} />
-        {(Object.keys(valueTheme) as ValueKey[]).map((k) => (
-          <Chip key={k} label={valueTheme[k].label} active={value === k} onPress={() => setValue(k)} color={valueTheme[k].color} />
-        ))}
-      </ScrollView>
+      <View style={styles.filterBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+          <Chip label="כל הערכים" active={value === 'all'} onPress={() => setValue('all')} color={colors.terracotta} />
+          {(Object.keys(valueTheme) as ValueKey[]).map((k) => (
+            <Chip key={k} label={valueTheme[k].label} active={value === k} onPress={() => setValue(k)} color={valueTheme[k].color} />
+          ))}
+        </ScrollView>
+      </View>
 
       <View style={styles.sortRow}>
         <Text style={styles.sortLabel}>מיון:</Text>
@@ -76,7 +80,7 @@ export default function StationsScreen() {
 function Chip({ label, active, color, onPress, small }: { label: string; active: boolean; color: string; onPress: () => void; small?: boolean }) {
   return (
     <TouchableOpacity onPress={onPress} style={[styles.chip, small && styles.chipSmall, { backgroundColor: active ? color : '#fff', borderColor: color }]}>
-      <Text style={[styles.chipTxt, { color: active ? '#fff' : color }]}>{label}</Text>
+      <Text numberOfLines={1} style={[styles.chipTxt, { color: active ? '#fff' : color }]}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -84,13 +88,14 @@ function Chip({ label, active, color, onPress, small }: { label: string; active:
 const styles = StyleSheet.create({
   c: { flex: 1, backgroundColor: colors.bg },
   h: { fontSize: 20, fontWeight: '800', color: colors.ink, textAlign: 'center', marginBottom: spacing.sm },
-  row: { gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-  sortRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
+  filterBar: { height: 44, marginBottom: spacing.xs },
+  row: { gap: spacing.sm, paddingHorizontal: spacing.md, alignItems: 'center' },
+  sortRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   sortLabel: { color: colors.muted, fontWeight: '700' },
-  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.pill, borderWidth: 1.5 },
-  chipSmall: { paddingHorizontal: 10, paddingVertical: 5 },
+  chip: { height: 34, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  chipSmall: { height: 30, paddingHorizontal: 10 },
   chipTxt: { fontWeight: '700', fontSize: 13 },
-  card: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm, backgroundColor: '#fff', borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm },
+  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: '#fff', borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm },
   dot: { width: 14, height: 14, borderRadius: 7 },
   cardTitle: { fontWeight: '700', color: colors.ink, textAlign: 'right' },
   cardSub: { color: colors.muted, fontSize: 13, textAlign: 'right' },

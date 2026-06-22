@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import { Platform } from 'react-native';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE, PROVIDER_DEFAULT, Region } from 'react-native-maps';
+
+const MAP_PROVIDER = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radius, valueTheme } from '@/theme';
 import { stations, routes } from '@/content';
@@ -20,7 +23,7 @@ export default function AdminMap() {
 
   return (
     <View style={styles.container}>
-      <MapView style={StyleSheet.absoluteFill} provider={PROVIDER_GOOGLE} initialRegion={INITIAL}>
+      <MapView style={StyleSheet.absoluteFill} provider={MAP_PROVIDER} initialRegion={INITIAL}>
         <Polyline coordinates={routes.waypoints.map((w) => ({ latitude: w.lat, longitude: w.lng }))} strokeColor={colors.terracotta} strokeWidth={3} />
 
         {stations.map((s) => (

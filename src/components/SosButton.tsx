@@ -35,10 +35,10 @@ export function SosButton() {
 const styles = StyleSheet.create({
   btn: {
     position: 'absolute',
-    bottom: 28,
+    bottom: 100, // clear of the bottom tab bar + home indicator
     left: 20,
-    width: 60,
-    height: 60,
+    width: 56,
+    height: 56,
     borderRadius: radius.pill,
     backgroundColor: colors.danger,
     alignItems: 'center',

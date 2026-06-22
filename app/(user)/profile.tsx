@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   avatarTxt: { color: '#fff', fontSize: 36, fontWeight: '800' },
   name: { fontSize: 20, fontWeight: '800', color: colors.ink, marginTop: spacing.sm },
   adminBadge: { marginTop: 4, color: colors.terracotta, fontWeight: '700' },
-  stats: { flexDirection: 'row-reverse', justifyContent: 'space-around', marginTop: spacing.xl },
+  stats: { flexDirection: 'row', justifyContent: 'space-around', marginTop: spacing.xl },
   stat: { alignItems: 'center' },
   statNum: { fontSize: 32, fontWeight: '900', color: colors.forest },
   statLabel: { fontSize: 13, color: colors.muted, marginTop: 2 },

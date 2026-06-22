@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   bank: { alignItems: 'center', backgroundColor: colors.deepGreen, borderRadius: radius.md, padding: spacing.lg, marginVertical: spacing.md },
   bankNum: { fontSize: 40, fontWeight: '900', color: colors.gold },
   bankLabel: { color: '#fff', marginTop: 2 },
-  row: { flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: '#fff', borderRadius: radius.sm, padding: 14, marginBottom: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: radius.sm, padding: 14, marginBottom: 8 },
   rank: { width: 28, fontWeight: '900', color: colors.terracotta, fontSize: 16 },
   name: { flex: 1, textAlign: 'right', color: colors.ink, fontWeight: '600' },
   km: { color: colors.forest, fontWeight: '800' },
