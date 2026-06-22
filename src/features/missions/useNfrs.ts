@@ -19,7 +19,11 @@ export function useNfrs() {
   useEffect(() => {
     const q = query(collection(db, 'nfrs'), where('active', '==', true));
     const unsub = onSnapshot(q,
-      (snap: any) => setNfrs(snap.docs.map((d: any) => ({ id: d.id, ...d.data() }) as Nfr)),
+      (snap: any) => {
+        const list = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }) as Nfr);
+        console.log('[nfrs] snapshot:', list.length, 'active missions');
+        setNfrs(list);
+      },
       (err: any) => console.warn('[nfrs] listener error', err?.message ?? err),
     );
     return () => unsub();

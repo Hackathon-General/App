@@ -9,6 +9,7 @@ import { useContent } from '@/content/ContentProvider';
 import { useLive, type LivePin } from '@/features/live/useLive';
 import { useFeedPins } from '@/features/feed/feed';
 import { useNfrs } from '@/features/missions/useNfrs';
+import { PulseCircle } from '@/components/PulseCircle';
 import { useTorch } from '@/features/torch/useTorch';
 import { BottomSheet } from '@/components/BottomSheet';
 import { MAP_PROVIDER, TrailPolyline, StationMarkers, TorchMarker, LivePinMarkers, FeedPinMarkers } from '@/map/markers';
@@ -34,7 +35,8 @@ export default function AdminMap() {
         <StationMarkers stations={stations} />
         {nfrs.map((n, i) => (
           <React.Fragment key={n.id}>
-            <Circle center={{ latitude: n.lat, longitude: n.lng }} radius={n.radius ?? 150} strokeColor={colors.forest} fillColor="rgba(46,125,50,0.10)" />
+            <Circle center={{ latitude: n.lat, longitude: n.lng }} radius={n.radius ?? 150} strokeColor={colors.forest} fillColor="rgba(46,125,50,0.10)" strokeWidth={2} />
+            <PulseCircle lat={n.lat} lng={n.lng} radius={n.radius ?? 150} color={colors.forest} />
             <Marker coordinate={{ latitude: n.lat, longitude: n.lng }} title={n.title} description={n.task} anchor={{ x: 0.5, y: 0.5 }}>
               <View style={styles.nfrPin}><Text style={styles.nfrNum}>{i + 1}</Text></View>
             </Marker>
