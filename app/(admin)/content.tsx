@@ -43,32 +43,82 @@ export default function AdminContent() {
   };
 
   if (edit) {
+    const valid = !!edit.id && !!edit.name && edit.lat != null && edit.lng != null;
     return (
-      <ScrollView style={[styles.c, { paddingTop: insets.top + spacing.md }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <Text style={styles.h}>{edit.id ? 'עריכת תחנה' : 'תחנה חדשה'}</Text>
-        <Field label="מזהה (id)" value={edit.id ?? ''} onChange={(v) => setEdit({ ...edit, id: v })} />
-        <Field label="שם" value={edit.name ?? ''} onChange={(v) => setEdit({ ...edit, name: v })} />
-        <Field label="מספר" value={String(edit.number ?? '')} onChange={(v) => setEdit({ ...edit, number: Number(v) || 0 })} keyboard="numeric" />
-        <Field label="קו רוחב (lat)" value={String(edit.lat ?? '')} onChange={(v) => setEdit({ ...edit, lat: Number(v) })} keyboard="numeric" />
-        <Field label="קו אורך (lng)" value={String(edit.lng ?? '')} onChange={(v) => setEdit({ ...edit, lng: Number(v) })} keyboard="numeric" />
-        <Field label="מה עושים בתכלס" value={edit.whatYouDo ?? ''} onChange={(v) => setEdit({ ...edit, whatYouDo: v })} multiline />
-        <Field label="על המקום" value={edit.aboutPlace ?? ''} onChange={(v) => setEdit({ ...edit, aboutPlace: v })} multiline />
-        <Field label="איש קשר" value={edit.contactName ?? ''} onChange={(v) => setEdit({ ...edit, contactName: v })} />
-        <Field label="טלפון" value={edit.contactPhone ?? ''} onChange={(v) => setEdit({ ...edit, contactPhone: v })} keyboard="phone-pad" />
-
-        <View style={styles.valuePicker}>
-          {(Object.keys(valueTheme) as (keyof typeof valueTheme)[]).map((k) => (
-            <TouchableOpacity key={k} onPress={() => setEdit({ ...edit, value: k as Station['value'] })}
-              style={[styles.valChip, { borderColor: valueTheme[k].color, backgroundColor: edit.value === k ? valueTheme[k].color : '#fff' }]}>
-              <Text style={{ color: edit.value === k ? '#fff' : valueTheme[k].color, fontWeight: '700', fontSize: 12 }}>{valueTheme[k].label}</Text>
+      <View style={styles.c}>
+        <AdminHeader
+          title={edit.id ? 'עריכת תחנה' : 'תחנה חדשה'}
+          subtitle={edit.name || 'מלא/י את פרטי התחנה'}
+          icon="map-marker-edit"
+          right={
+            <TouchableOpacity onPress={() => setEdit(null)} hitSlop={8} style={styles.headerClose}>
+              <MaterialCommunityIcons name="close" size={20} color="#fff" />
             </TouchableOpacity>
-          ))}
-        </View>
+          }
+        />
+        <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 120 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {/* Value picker first — sets the card's identity/color */}
+          <SectionTitle icon="palette" text="ערך השביל" />
+          <View style={styles.valuePicker}>
+            {(Object.keys(valueTheme) as (keyof typeof valueTheme)[]).map((k) => {
+              const on = edit.value === k;
+              return (
+                <TouchableOpacity key={k} onPress={() => setEdit({ ...edit, value: k as Station['value'] })}
+                  style={[styles.valChip, { borderColor: valueTheme[k].color, backgroundColor: on ? valueTheme[k].color : '#fff' }]}>
+                  <MaterialCommunityIcons name={valueTheme[k].icon as never} size={13} color={on ? '#fff' : valueTheme[k].color} />
+                  <Text style={{ color: on ? '#fff' : valueTheme[k].color, fontWeight: '800', fontSize: 12 }}>{valueTheme[k].label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-        <TouchableOpacity style={styles.save} onPress={save}><Text style={styles.saveTxt}>שמור</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.cancel} onPress={() => setEdit(null)}><Text style={styles.cancelTxt}>ביטול</Text></TouchableOpacity>
-        <View style={{ height: 40 }} />
-      </ScrollView>
+          <SectionTitle icon="card-text" text="זהות" />
+          <View style={styles.card}>
+            <Field label="שם התחנה" value={edit.name ?? ''} onChange={(v) => setEdit({ ...edit, name: v })} />
+            <View style={styles.fieldRow}>
+              <View style={{ flex: 1 }}><Field label="מספר" value={String(edit.number ?? '')} onChange={(v) => setEdit({ ...edit, number: Number(v) || 0 })} keyboard="numeric" /></View>
+              <View style={{ flex: 2 }}><Field label="מזהה (id)" value={edit.id ?? ''} onChange={(v) => setEdit({ ...edit, id: v })} /></View>
+            </View>
+            <View style={styles.regionRow}>
+              {(['east', 'west'] as const).map((r) => (
+                <TouchableOpacity key={r} onPress={() => setEdit({ ...edit, region: r })}
+                  style={[styles.regionChip, edit.region === r && styles.regionChipOn]}>
+                  <Text style={[styles.regionTxt, edit.region === r && styles.regionTxtOn]}>{r === 'east' ? 'איזור מזרחי' : 'איזור מערבי'}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <SectionTitle icon="map-marker" text="מיקום" />
+          <View style={styles.card}>
+            <View style={styles.fieldRow}>
+              <View style={{ flex: 1 }}><Field label="קו רוחב" value={String(edit.lat ?? '')} onChange={(v) => setEdit({ ...edit, lat: Number(v) })} keyboard="numeric" /></View>
+              <View style={{ flex: 1 }}><Field label="קו אורך" value={String(edit.lng ?? '')} onChange={(v) => setEdit({ ...edit, lng: Number(v) })} keyboard="numeric" /></View>
+            </View>
+          </View>
+
+          <SectionTitle icon="text-box" text="תוכן" />
+          <View style={styles.card}>
+            <Field label="מה עושים בתכלס" value={edit.whatYouDo ?? ''} onChange={(v) => setEdit({ ...edit, whatYouDo: v })} multiline />
+            <Field label="על המקום" value={edit.aboutPlace ?? ''} onChange={(v) => setEdit({ ...edit, aboutPlace: v })} multiline />
+          </View>
+
+          <SectionTitle icon="phone" text="איש קשר" />
+          <View style={styles.card}>
+            <Field label="שם" value={edit.contactName ?? ''} onChange={(v) => setEdit({ ...edit, contactName: v })} />
+            <Field label="טלפון" value={edit.contactPhone ?? ''} onChange={(v) => setEdit({ ...edit, contactPhone: v })} keyboard="phone-pad" />
+          </View>
+        </ScrollView>
+
+        {/* Sticky save bar */}
+        <View style={styles.saveBar}>
+          <TouchableOpacity style={styles.cancel} onPress={() => setEdit(null)}><Text style={styles.cancelTxt}>ביטול</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.save, !valid && styles.saveDisabled]} onPress={save} disabled={!valid}>
+            <MaterialCommunityIcons name="content-save" size={18} color="#fff" />
+            <Text style={styles.saveTxt}>שמור</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     );
   }
 
@@ -115,7 +165,16 @@ function Field({ label, value, onChange, multiline, keyboard }: { label: string;
   return (
     <View style={{ marginBottom: spacing.sm }}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput style={[styles.input, multiline && { height: 70 }]} value={value} onChangeText={onChange} multiline={multiline} keyboardType={keyboard} textAlign="right" />
+      <TextInput style={[styles.input, multiline && { height: 70 }]} value={value} onChangeText={onChange} multiline={multiline} keyboardType={keyboard} textAlign="right" placeholderTextColor={colors.muted} />
+    </View>
+  );
+}
+
+function SectionTitle({ icon, text }: { icon: any; text: string }) {
+  return (
+    <View style={styles.sectionTitle}>
+      <MaterialCommunityIcons name={icon} size={15} color={colors.forest} />
+      <Text style={styles.sectionTitleTxt}>{text}</Text>
     </View>
   );
 }
@@ -133,12 +192,25 @@ const styles = StyleSheet.create({
   rowName: { textAlign: 'right', fontWeight: '700', color: colors.ink, writingDirection: 'rtl' },
   rowSub: { textAlign: 'right', fontSize: 12, color: colors.muted, writingDirection: 'rtl', marginTop: 1 },
   rowAction: { padding: 4 },
-  label: { fontSize: 13, fontWeight: '700', color: colors.terracotta, textAlign: 'right', writingDirection: 'rtl', marginBottom: 4, marginHorizontal: spacing.md },
-  input: { backgroundColor: '#fff', borderRadius: radius.sm, padding: 12, borderWidth: 1, borderColor: colors.line, marginHorizontal: spacing.md, writingDirection: 'rtl' },
-  valuePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginHorizontal: spacing.md, marginTop: spacing.sm, direction: 'rtl' },
-  valChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, borderWidth: 1.5 },
-  save: { backgroundColor: colors.forest, marginHorizontal: spacing.md, marginTop: spacing.lg, paddingVertical: 14, borderRadius: radius.pill, alignItems: 'center' },
+  label: { fontSize: 12, fontWeight: '700', color: colors.muted, textAlign: 'right', writingDirection: 'rtl', marginBottom: 4 },
+  input: { backgroundColor: colors.bg, borderRadius: radius.sm, padding: 12, borderWidth: 1, borderColor: colors.line, writingDirection: 'rtl' },
+  // form sections
+  headerClose: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  sectionTitle: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.lg, marginBottom: spacing.sm },
+  sectionTitleTxt: { fontSize: 14, fontWeight: '800', color: colors.forest, writingDirection: 'rtl' },
+  card: { backgroundColor: '#fff', borderRadius: radius.md, padding: spacing.md, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 5, elevation: 1 },
+  fieldRow: { flexDirection: 'row', gap: spacing.sm },
+  regionRow: { flexDirection: 'row', gap: spacing.sm, marginTop: 4 },
+  regionChip: { flex: 1, paddingVertical: 10, borderRadius: radius.sm, borderWidth: 1.5, borderColor: colors.line, alignItems: 'center' },
+  regionChipOn: { backgroundColor: colors.forest, borderColor: colors.forest },
+  regionTxt: { fontWeight: '700', color: colors.muted, fontSize: 13 },
+  regionTxtOn: { color: '#fff' },
+  valuePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, direction: 'rtl' },
+  valChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, borderWidth: 1.5 },
+  saveBar: { flexDirection: 'row', gap: spacing.sm, padding: spacing.md, paddingBottom: spacing.lg, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: colors.line },
+  save: { flex: 2, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, backgroundColor: colors.forest, paddingVertical: 15, borderRadius: radius.pill },
+  saveDisabled: { opacity: 0.5 },
   saveTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  cancel: { marginHorizontal: spacing.md, marginTop: spacing.sm, paddingVertical: 12, alignItems: 'center' },
+  cancel: { flex: 1, paddingVertical: 15, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1.5, borderColor: colors.line },
   cancelTxt: { color: colors.muted, fontWeight: '700' },
 });
