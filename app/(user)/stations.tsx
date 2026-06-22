@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radius, valueTheme } from '@/theme';
 import { stations, content, type Station, type ValueKey } from '@/content';
@@ -59,18 +60,36 @@ export default function StationsScreen() {
         keyExtractor={(s) => s.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: spacing.md }}
-        renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).springify()}>
-            <TouchableOpacity style={styles.card} onPress={() => setSelected(item)} activeOpacity={0.7}>
-              <View style={[styles.dot, { backgroundColor: valueTheme[item.value].color }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{item.number}. {item.name}</Text>
-                <Text style={styles.cardSub} numberOfLines={1}>{item.whatYouDo}</Text>
-              </View>
-              <Text style={styles.valueTag}>{valueTheme[item.value].label}</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
+        renderItem={({ item, index }) => {
+          const v = valueTheme[item.value];
+          const paid = item.paid === 'yes' ? 'בתשלום' : item.paid === 'symbolic' ? 'תשלום סמלי' : 'חינם';
+          return (
+            <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).springify()}>
+              <TouchableOpacity style={styles.card} onPress={() => setSelected(item)} activeOpacity={0.75}>
+                {/* value color stripe */}
+                <View style={[styles.stripe, { backgroundColor: v.color }]} />
+                <View style={styles.cardInner}>
+                  <View style={styles.cardTop}>
+                    <View style={[styles.iconBadge, { backgroundColor: v.color }]}>
+                      <MaterialCommunityIcons name={v.icon as never} size={18} color="#fff" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cardTitle} numberOfLines={1}>{item.number}. {item.name}</Text>
+                      <Text style={styles.cardSub} numberOfLines={1}>{item.whatYouDo}</Text>
+                    </View>
+                    <MaterialCommunityIcons name="chevron-left" size={22} color={colors.muted} />
+                  </View>
+                  <View style={styles.tagRow}>
+                    <Tag label={v.label} color={v.color} solid />
+                    <Tag label={item.region === 'east' ? 'מזרחי' : 'מערבי'} color={colors.deepGreen} />
+                    <Tag label={paid} color={item.paid === 'no' ? colors.success : colors.terracotta} />
+                    {item.needsBooking && <Tag label="בתיאום מראש" color={colors.muted} />}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          );
+        }}
       />
 
       <BottomSheet visible={!!selected} onClose={() => setSelected(null)}>
@@ -88,6 +107,14 @@ function Chip({ label, active, color, onPress, small }: { label: string; active:
   );
 }
 
+function Tag({ label, color, solid }: { label: string; color: string; solid?: boolean }) {
+  return (
+    <View style={[styles.tag, solid ? { backgroundColor: color } : { borderWidth: 1, borderColor: color }]}>
+      <Text style={[styles.tagTxt, { color: solid ? '#fff' : color }]}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   c: { flex: 1, backgroundColor: colors.bg, direction: 'rtl' },
   h: { fontSize: 20, fontWeight: '800', color: colors.ink, textAlign: 'center', marginBottom: spacing.sm },
@@ -98,9 +125,15 @@ const styles = StyleSheet.create({
   chip: { height: 34, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   chipSmall: { height: 30, paddingHorizontal: 10 },
   chipTxt: { fontWeight: '700', fontSize: 13 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: '#fff', borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm },
-  dot: { width: 14, height: 14, borderRadius: 7 },
-  cardTitle: { fontWeight: '700', color: colors.ink, textAlign: 'right' },
-  cardSub: { color: colors.muted, fontSize: 13, textAlign: 'right' },
-  valueTag: { fontSize: 11, color: colors.muted },
+  // redesigned card
+  card: { backgroundColor: '#fff', borderRadius: radius.md, marginBottom: spacing.sm, overflow: 'hidden', flexDirection: 'row', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  stripe: { width: 6 },
+  cardInner: { flex: 1, padding: spacing.md },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  iconBadge: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontWeight: '800', color: colors.ink, textAlign: 'right', writingDirection: 'rtl', fontSize: 15 },
+  cardSub: { color: colors.muted, fontSize: 13, textAlign: 'right', writingDirection: 'rtl', marginTop: 1 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.sm },
+  tag: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: radius.pill },
+  tagTxt: { fontSize: 11, fontWeight: '700' },
 });

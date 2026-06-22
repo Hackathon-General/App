@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, ScrollView, Platform, Linking } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
@@ -28,6 +29,9 @@ const VALUE_KEYS = Object.keys(valueTheme) as ValueKey[];
 
 const visibleStationsList = (filter: ValueKey | 'all') =>
   filter === 'all' ? stations.slice() : stations.filter((s) => s.value === filter);
+
+// Center of the trail (mid Carmel→Kinneret) for the "off-trail" detection.
+const TRAIL_CENTER = { lat: 32.72, lng: 35.27 };
 
 const INITIAL_REGION: Region = {
   latitude: 32.72,
@@ -88,6 +92,27 @@ export default function MapScreen() {
     );
   };
 
+  // "Recenter on the trail" — fit the whole Carmel→Kinneret route in view.
+  const [offTrail, setOffTrail] = useState(false);
+  const fitToTrail = () => {
+    Haptics.selectionAsync().catch(() => {});
+    mapRef.current?.fitToCoordinates(
+      routes.waypoints.map((w) => ({ latitude: w.lat, longitude: w.lng })),
+      { edgePadding: { top: 120, right: 60, bottom: 180, left: 60 }, animated: true }
+    );
+    setOffTrail(false);
+  };
+
+  // Show the recenter button when the map center drifts away from the trail's center.
+  const onRegionChange = (r: Region) => {
+    const d = distanceMeters(
+      { lat: r.latitude, lng: r.longitude },
+      { lat: TRAIL_CENTER.lat, lng: TRAIL_CENTER.lng }
+    );
+    // Off-trail if panned >20km from center OR zoomed way out/in beyond the trail span.
+    setOffTrail(d > 20000 || r.latitudeDelta > 1.0 || r.latitudeDelta < 0.01);
+  };
+
   const visibleStations = useMemo(
     () => (filter === 'all' ? stations : stations.filter((s) => s.value === filter)),
     [filter]
@@ -117,6 +142,7 @@ export default function MapScreen() {
           initialRegion={INITIAL_REGION}
           showsUserLocation
           showsMyLocationButton={false}
+          onRegionChangeComplete={onRegionChange}
         >
           {/* Interactive route: leg-colored polyline segments (Carmel→Kinneret) */}
           {routes.relayLegs.map((leg, i) => (
@@ -214,6 +240,16 @@ export default function MapScreen() {
               </TouchableOpacity>
             </View>
           </View>
+        )}
+
+        {/* "Recenter on the trail" — appears when you've panned away from the path */}
+        {offTrail && (
+          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.recenterWrap}>
+            <TouchableOpacity style={styles.recenterBtn} onPress={fitToTrail} activeOpacity={0.85}>
+              <MaterialCommunityIcons name="map-marker-path" size={18} color="#fff" />
+              <Text style={styles.recenterTxt}>חזרה לשביל</Text>
+            </TouchableOpacity>
+          </Animated.View>
         )}
 
         {/* Floating controls: center-on-me + toggle proximity list */}
@@ -339,6 +375,14 @@ const styles = StyleSheet.create({
   },
   sensorMarker: { backgroundColor: colors.sky },
   personTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  // Recenter-on-trail pill (top-center of map)
+  recenterWrap: { position: 'absolute', top: spacing.md, alignSelf: 'center' },
+  recenterBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.forest, paddingHorizontal: 16, paddingVertical: 9, borderRadius: radius.pill,
+    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 5, elevation: 5,
+  },
+  recenterTxt: { color: '#fff', fontWeight: '800', fontSize: 14, writingDirection: 'rtl' },
   // Floating controls
   fabCol: { position: 'absolute', bottom: 110, right: spacing.md, gap: spacing.sm },
   fab: {
