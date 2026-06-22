@@ -64,7 +64,7 @@ export default function StationsScreen() {
           const v = valueTheme[item.value];
           const paid = item.paid === 'yes' ? 'בתשלום' : item.paid === 'symbolic' ? 'תשלום סמלי' : 'חינם';
           return (
-            <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).springify()}>
+            <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).duration(350)}>
               <TouchableOpacity style={styles.card} onPress={() => setSelected(item)} activeOpacity={0.75}>
                 {/* value color stripe */}
                 <View style={[styles.stripe, { backgroundColor: v.color }]} />

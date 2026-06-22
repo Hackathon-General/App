@@ -34,7 +34,7 @@ export default function ProfileScreen() {
     try {
       const matched = await completeTrail(visited);
       setTakeHome(matched);
-      if (matched.length === 0) Alert.alert('סיימת את הטיול! 🎉', 'תודה שצעדת בדרכן.');
+      if (matched.length === 0) Alert.alert('סיימת את הטיול!', 'תודה שצעדת בדרכן.');
     } catch (e: any) {
       Alert.alert('שגיאה', e?.message ?? '');
     }
@@ -78,14 +78,19 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           {takeHome.map((t, i) => (
-            <Animated.View key={t.id} entering={FadeInDown.delay(i * 60).springify()}>
+            <Animated.View key={t.id} entering={FadeInDown.delay(i * 60).duration(350)}>
               <TouchableOpacity style={styles.takeHomeCard} activeOpacity={0.8}
                 onPress={() => t.link && Linking.openURL(t.link)}>
                 <View style={styles.takeHomeIcon}><MaterialCommunityIcons name="hand-heart" size={18} color={colors.mint} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.takeHomeTitle}>{t.title ?? 'משימת המשך'}</Text>
                   {!!t.description && <Text style={styles.takeHomeDesc}>{t.description}</Text>}
-                  {!!t.link && <Text style={styles.takeHomeLink}>פתח קישור ↗</Text>}
+                  {!!t.link && (
+                    <View style={styles.takeHomeLinkRow}>
+                      <Text style={styles.takeHomeLink}>פתח קישור</Text>
+                      <MaterialCommunityIcons name="open-in-new" size={13} color={colors.forest} />
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
             </Animated.View>
@@ -143,7 +148,8 @@ const styles = StyleSheet.create({
   takeHomeIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   takeHomeTitle: { fontWeight: '800', color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
   takeHomeDesc: { color: colors.muted, marginTop: 2, textAlign: 'right', writingDirection: 'rtl' },
-  takeHomeLink: { color: colors.forest, fontWeight: '700', marginTop: 6, textAlign: 'right' },
+  takeHomeLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  takeHomeLink: { color: colors.forest, fontWeight: '700', textAlign: 'right' },
   adminBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, backgroundColor: colors.deepGreen, paddingVertical: 15, borderRadius: radius.pill, marginTop: spacing.md },
   adminBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
   signOut: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, borderWidth: 1.5, borderColor: colors.danger, paddingVertical: 14, borderRadius: radius.pill, marginTop: spacing.md },

@@ -21,6 +21,7 @@ import { colors, spacing, radius, valueTheme } from '@/theme';
 import { stations, routes, content, type Station, type ValueKey } from '@/content';
 import { StationSheet } from '@/components/StationSheet';
 import { BottomSheet } from '@/components/BottomSheet';
+import { SosButton } from '@/components/SosButton';
 import { useTorch } from '@/features/torch/useTorch';
 import { useLive } from '@/features/live/useLive';
 import { useAuth } from '@/auth/AuthProvider';
@@ -173,7 +174,11 @@ export default function MapScreen() {
                 anchor={{ x: 0.5, y: 0.5 }}
               >
                 <View style={[styles.wpMarker, { backgroundColor: bg }]}>
-                  <Text style={styles.wpMarkerTxt}>{isStart ? '🏁' : isFinish ? '🎉' : i}</Text>
+                  {isStart || isFinish ? (
+                    <MaterialCommunityIcons name={isStart ? 'flag' : 'flag-checkered'} size={14} color="#fff" style={styles.wpIcon} />
+                  ) : (
+                    <Text style={styles.wpMarkerTxt}>{i}</Text>
+                  )}
                 </View>
               </Marker>
             );
@@ -209,7 +214,11 @@ export default function MapScreen() {
                 anchor={{ x: 0.5, y: 0.5 }}
               >
                 <View style={[styles.personMarker, p.source === 'sensor' && styles.sensorMarker]}>
-                  <Text style={styles.personTxt}>{p.source === 'sensor' ? '🏃' : (p.name ?? 'מ')[0]}</Text>
+                  {p.source === 'sensor' ? (
+                    <MaterialCommunityIcons name="run-fast" size={20} color="#fff" />
+                  ) : (
+                    <Text style={styles.personTxt}>{(p.name ?? 'מ')[0]}</Text>
+                  )}
                 </View>
               </Marker>
             ))}
@@ -220,7 +229,9 @@ export default function MapScreen() {
               title={torch.status === 'held' ? content.ui.torch.heldByOther : content.ui.torch.waiting}
               anchor={{ x: 0.5, y: 0.5 }}
             >
-              <Text style={{ fontSize: 30 }}>🔥</Text>
+              <View style={styles.torchMarker}>
+                <MaterialCommunityIcons name="torch" size={22} color="#fff" />
+              </View>
             </Marker>
           )}
         </MapView>
@@ -236,7 +247,8 @@ export default function MapScreen() {
             <Text style={styles.legKm}>{leg.km} ק"מ</Text>
             <View style={styles.legActions}>
               <TouchableOpacity style={styles.wazeBtn} onPress={() => openWaze(leg.toLat, leg.toLng)}>
-                <Text style={styles.wazeTxt}>נווט עם Waze ↗</Text>
+                <MaterialCommunityIcons name="navigation-variant" size={16} color={colors.ink} />
+                <Text style={styles.wazeTxt}>נווט עם Waze</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -266,24 +278,41 @@ export default function MapScreen() {
         {showList && (
           <View style={styles.carousel}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: spacing.md }}>
-              {orderedStations.map((s) => (
-                <TouchableOpacity
-                  key={s.id}
-                  style={styles.placeCard}
-                  onPress={() => { focusStation(s); setSelected(stations.find((x) => x.id === s.id) ?? null); }}
-                >
-                  <View style={[styles.placeDot, { backgroundColor: valueTheme[s.value].color }]} />
-                  <Text style={styles.placeName} numberOfLines={1}>{s.number}. {s.name}</Text>
-                  {'_distM' in s && (s as any)._distM != null && (
-                    <Text style={styles.placeDist}>{((s as any)._distM / 1000).toFixed(1)} ק"מ ממך</Text>
-                  )}
-                  <Text style={styles.placeValue}>{valueTheme[s.value].label}</Text>
-                </TouchableOpacity>
-              ))}
+              {orderedStations.map((s) => {
+                const v = valueTheme[s.value];
+                return (
+                  <TouchableOpacity
+                    key={s.id}
+                    style={styles.placeCard}
+                    activeOpacity={0.85}
+                    onPress={() => { focusStation(s); setSelected(stations.find((x) => x.id === s.id) ?? null); }}
+                  >
+                    <View style={[styles.placeStripe, { backgroundColor: v.color }]} />
+                    <View style={styles.placeInner}>
+                      <View style={styles.placeTop}>
+                        <View style={[styles.placeIcon, { backgroundColor: v.color }]}>
+                          <MaterialCommunityIcons name={v.icon as never} size={16} color="#fff" />
+                        </View>
+                        <Text style={styles.placeName} numberOfLines={1}>{s.number}. {s.name}</Text>
+                      </View>
+                      {'_distM' in s && (s as any)._distM != null && (
+                        <View style={styles.placeDistRow}>
+                          <MaterialCommunityIcons name="map-marker-distance" size={13} color={colors.terracotta} />
+                          <Text style={styles.placeDist}>{((s as any)._distM / 1000).toFixed(1)} ק"מ ממך</Text>
+                        </View>
+                      )}
+                      <Text style={styles.placeValue} numberOfLines={1}>{v.label}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
         )}
       </View>
+
+      {/* SOS — only on the map page; hidden while the proximity list is open */}
+      {!showList && <SosButton />}
 
       {/* Station detail sheet — animated, drag-to-dismiss */}
       <BottomSheet visible={!!selected} onClose={() => setSelected(null)}>
@@ -348,7 +377,7 @@ const styles = StyleSheet.create({
   legRoute: { fontSize: 17, fontWeight: '800', color: colors.ink, textAlign: 'right', marginTop: spacing.sm },
   legKm: { fontSize: 15, color: colors.forest, fontWeight: '700', textAlign: 'right', marginTop: 2 },
   legActions: { flexDirection: 'row', marginTop: spacing.sm },
-  wazeBtn: { backgroundColor: colors.sky, borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 8 },
+  wazeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.sky, borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 8, alignSelf: 'flex-start' },
   wazeTxt: { color: colors.ink, fontWeight: '700' },
   // נקודת מעבר — diamond
   wpMarker: {
@@ -356,6 +385,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff',
   },
   wpMarkerTxt: { transform: [{ rotate: '-45deg' }], color: '#fff', fontWeight: '800', fontSize: 12 },
+  wpIcon: { transform: [{ rotate: '-45deg' }] },
+  torchMarker: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 3, elevation: 5 },
   // התנדבות — round pin with tail
   stationMarker: { alignItems: 'center' },
   stationPin: {
@@ -391,14 +422,18 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4, elevation: 5,
   },
   fabActive: { backgroundColor: colors.terracotta },
-  // Proximity carousel
-  carousel: { position: 'absolute', bottom: 24, left: 0, right: 0 },
+  // Proximity carousel (above SOS via high zIndex)
+  carousel: { position: 'absolute', bottom: 24, left: 0, right: 0, zIndex: 10000, elevation: 12 },
   placeCard: {
-    width: 210, backgroundColor: '#fff', borderRadius: radius.md, padding: spacing.md,
-    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 6, elevation: 4, direction: 'rtl',
+    width: 230, backgroundColor: '#fff', borderRadius: radius.md, overflow: 'hidden', flexDirection: 'row',
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6, direction: 'rtl',
   },
-  placeDot: { width: 12, height: 12, borderRadius: 6, marginBottom: 6 },
-  placeName: { fontWeight: '800', color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
-  placeDist: { color: colors.terracotta, fontWeight: '700', fontSize: 12, textAlign: 'right', marginTop: 2 },
+  placeStripe: { width: 6 },
+  placeInner: { flex: 1, padding: spacing.md },
+  placeTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  placeIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  placeName: { flex: 1, fontWeight: '800', color: colors.ink, textAlign: 'right', writingDirection: 'rtl', fontSize: 14 },
+  placeDistRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
+  placeDist: { color: colors.terracotta, fontWeight: '800', fontSize: 13 },
   placeValue: { color: colors.muted, fontSize: 12, textAlign: 'right', marginTop: 2 },
 });

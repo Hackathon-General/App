@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
 import { ref, onValue } from '@react-native-firebase/database';
@@ -72,7 +73,7 @@ export default function TorchScreen() {
       await dropTorch({ lat: pos.lat, lng: pos.lng, segmentKm: carriedKm });
       startRef.current = null;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      Alert.alert('כל הכבוד!', `הוספת ${carriedKm.toFixed(2)} ק"מ למאמץ הקהילתי 🔥`);
+      Alert.alert('כל הכבוד!', `הוספת ${carriedKm.toFixed(2)} ק"מ למאמץ הקהילתי`);
       setCarriedKm(0);
     } catch (e: any) {
       Alert.alert('שגיאה', e?.message ?? '');
@@ -83,7 +84,9 @@ export default function TorchScreen() {
 
   return (
     <LinearGradient colors={[colors.gold, colors.terracotta]} style={styles.container}>
-      <Text style={styles.flame}>🔥</Text>
+      <View style={styles.flameCircle}>
+        <MaterialCommunityIcons name="torch" size={48} color="#fff" />
+      </View>
       <Text style={styles.title}>מירוץ הלפיד הווירטואלי</Text>
 
       <View style={styles.bank}>
@@ -117,7 +120,7 @@ function Action({ label, onPress, busy }: { label: string; onPress: () => void; 
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  flame: { fontSize: 72 },
+  flameCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '800', color: '#fff', marginTop: spacing.sm },
   bank: { alignItems: 'center', marginVertical: spacing.xl },
   bankNum: { fontSize: 56, fontWeight: '900', color: '#fff' },

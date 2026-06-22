@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -49,12 +50,24 @@ export default function FeedScreen() {
           keyExtractor={(p) => p.id}
           showsVerticalScrollIndicator={false}
           renderItem={({ item, index }) => <PostCard post={item} index={index} />}
-          ListEmptyComponent={<Text style={styles.empty}>היו הראשונים לשתף רגע מהמסע ✨</Text>}
+          ListEmptyComponent={
+            <View style={styles.emptyWrap}>
+              <MaterialCommunityIcons name="image-multiple-outline" size={48} color={colors.line} />
+              <Text style={styles.empty}>היו הראשונים לשתף רגע מהמסע</Text>
+            </View>
+          }
           contentContainerStyle={{ padding: spacing.md }}
         />
       )}
       <TouchableOpacity style={styles.fab} onPress={share} disabled={uploading}>
-        <Text style={styles.fabTxt}>{uploading ? '...' : '📷 שתף רגע'}</Text>
+        {uploading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <>
+            <MaterialCommunityIcons name="camera-plus" size={18} color="#fff" />
+            <Text style={styles.fabTxt}>שתף רגע</Text>
+          </>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -62,11 +75,22 @@ export default function FeedScreen() {
 
 function PostCard({ post, index = 0 }: { post: FeedPost; index?: number }) {
   return (
-    <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 50).springify()} style={styles.card}>
-      {!!post.imageUrl && <Image source={{ uri: post.imageUrl }} style={styles.cardImg} contentFit="cover" />}
-      <View style={styles.cardBody}>
+    <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 50).duration(350)} style={styles.card}>
+      <View style={styles.cardHead}>
+        {post.authorPhoto ? (
+          <Image source={{ uri: post.authorPhoto }} style={styles.authorAvatar} />
+        ) : (
+          <View style={[styles.authorAvatar, styles.authorAvatarFallback]}>
+            <Text style={styles.authorAvatarTxt}>{(post.authorName ?? 'מ')[0]}</Text>
+          </View>
+        )}
         <Text style={styles.author}>{post.authorName ?? 'מטייל/ת'}</Text>
-        {!!post.text && <Text style={styles.text}>{post.text}</Text>}
+      </View>
+      {!!post.imageUrl && <Image source={{ uri: post.imageUrl }} style={styles.cardImg} contentFit="cover" />}
+      {!!post.text && <Text style={styles.text}>{post.text}</Text>}
+      <View style={styles.cardFooter}>
+        <View style={styles.footAction}><MaterialCommunityIcons name="heart-outline" size={20} color={colors.muted} /></View>
+        <View style={styles.footAction}><MaterialCommunityIcons name="comment-outline" size={19} color={colors.muted} /></View>
       </View>
     </Animated.View>
   );
@@ -75,12 +99,18 @@ function PostCard({ post, index = 0 }: { post: FeedPost; index?: number }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, direction: 'rtl' },
   header: { fontSize: 20, fontWeight: '800', color: colors.ink, textAlign: 'center', paddingVertical: spacing.sm },
-  empty: { textAlign: 'center', color: colors.muted, marginTop: 60, fontSize: 16 },
-  card: { backgroundColor: '#fff', borderRadius: radius.md, marginBottom: spacing.md, overflow: 'hidden', elevation: 2 },
+  emptyWrap: { alignItems: 'center', marginTop: 80, gap: spacing.sm },
+  empty: { textAlign: 'center', color: colors.muted, fontSize: 16, writingDirection: 'rtl' },
+  card: { backgroundColor: '#fff', borderRadius: radius.lg, marginBottom: spacing.md, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  cardHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md },
+  authorAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.line },
+  authorAvatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.forest },
+  authorAvatarTxt: { color: '#fff', fontWeight: '800' },
   cardImg: { width: '100%', aspectRatio: 1.2 },
-  cardBody: { padding: spacing.md },
-  author: { fontWeight: '700', color: colors.forest, textAlign: 'right' },
-  text: { color: colors.ink, marginTop: 4, textAlign: 'right' },
-  fab: { position: 'absolute', bottom: 100, right: 20, backgroundColor: colors.terracotta, paddingHorizontal: 22, paddingVertical: 14, borderRadius: radius.pill, elevation: 5 },
+  author: { fontWeight: '700', color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
+  text: { color: colors.ink, padding: spacing.md, textAlign: 'right', writingDirection: 'rtl' },
+  cardFooter: { flexDirection: 'row', gap: spacing.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  footAction: { padding: 2 },
+  fab: { flexDirection: 'row', alignItems: 'center', gap: 8, position: 'absolute', bottom: 100, right: 20, backgroundColor: colors.terracotta, paddingHorizontal: 22, paddingVertical: 14, borderRadius: radius.pill, elevation: 5, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 5 },
   fabTxt: { color: '#fff', fontWeight: '800', fontSize: 15 },
 });

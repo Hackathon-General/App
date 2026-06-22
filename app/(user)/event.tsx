@@ -47,11 +47,14 @@ export default function EventScreen() {
           </View>
         </View>
 
-        <Text style={styles.notice}>⚠️ {content.race.notice}</Text>
+        <View style={styles.noticeRow}>
+          <MaterialCommunityIcons name="alert" size={15} color={colors.danger} />
+          <Text style={styles.notice}>{content.race.notice}</Text>
+        </View>
 
         {/* Category cards */}
         {events.categories.map((c: any, i: number) => (
-          <Animated.View key={c.id} entering={FadeInDown.delay(i * 80).springify()} style={styles.card}>
+          <Animated.View key={c.id} entering={FadeInDown.delay(i * 80).duration(350)} style={styles.card}>
             <View style={styles.imgWrap}>
               {IMAGES[c.image] && <Image source={IMAGES[c.image]} style={styles.img} contentFit="cover" />}
               <LinearGradient colors={['transparent', 'rgba(0,0,0,0.75)']} style={styles.imgOverlay} />
@@ -162,7 +165,8 @@ const styles = StyleSheet.create({
   heroDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.25)' },
   statusPill: { alignSelf: 'center', marginTop: spacing.md, backgroundColor: colors.gold, paddingHorizontal: 16, paddingVertical: 6, borderRadius: radius.pill },
   statusTxt: { color: colors.ink, fontWeight: '800', fontSize: 13 },
-  notice: { fontSize: 13, color: colors.danger, textAlign: 'center', marginTop: spacing.md, marginHorizontal: spacing.lg, fontWeight: '600', writingDirection: 'rtl' },
+  noticeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: spacing.md, marginHorizontal: spacing.lg },
+  notice: { fontSize: 13, color: colors.danger, textAlign: 'center', fontWeight: '600', writingDirection: 'rtl', flexShrink: 1 },
   card: { backgroundColor: '#fff', borderRadius: radius.lg, overflow: 'hidden', marginTop: spacing.md, marginHorizontal: spacing.md, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
   imgWrap: { height: 160 },
   img: { width: '100%', height: '100%' },

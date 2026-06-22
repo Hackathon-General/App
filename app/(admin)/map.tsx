@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal } from 'react-native';
 import { Platform } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, PROVIDER_DEFAULT, Region } from 'react-native-maps';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const MAP_PROVIDER = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,12 +42,21 @@ export default function AdminMap() {
           />
         ))}
 
-        {torch && <Marker coordinate={{ latitude: torch.lat, longitude: torch.lng }} pinColor={colors.gold} title="🔥 לפיד" />}
+        {torch && (
+          <Marker coordinate={{ latitude: torch.lat, longitude: torch.lng }} title="לפיד" anchor={{ x: 0.5, y: 0.5 }}>
+            <View style={styles.torchMarker}><MaterialCommunityIcons name="torch" size={20} color="#fff" /></View>
+          </Marker>
+        )}
       </MapView>
 
       <View style={[styles.hud, { paddingTop: insets.top + spacing.sm }]}>
         <Text style={styles.hudTitle}>חמ"ל — God Mode</Text>
-        <Text style={styles.hudStat}>📱 {phones} מטיילים · 📡 {sensors} חיישנים</Text>
+        <View style={styles.hudStatRow}>
+          <MaterialCommunityIcons name="cellphone" size={15} color={colors.ink} />
+          <Text style={styles.hudStat}>{phones} מטיילים</Text>
+          <MaterialCommunityIcons name="access-point" size={15} color={colors.ink} />
+          <Text style={styles.hudStat}>{sensors} חיישנים</Text>
+        </View>
       </View>
 
       <Modal visible={!!sel} transparent animationType="fade" onRequestClose={() => setSel(null)}>
@@ -69,7 +79,9 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   hud: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' },
   hudTitle: { fontSize: 18, fontWeight: '900', color: colors.ink, textShadowColor: '#fff', textShadowRadius: 6 },
-  hudStat: { fontSize: 14, color: colors.ink, fontWeight: '700', textShadowColor: '#fff', textShadowRadius: 6 },
+  hudStatRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999 },
+  hudStat: { fontSize: 13, color: colors.ink, fontWeight: '700' },
+  torchMarker: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff' },
   backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' },
   pinCard: { backgroundColor: '#fff', borderRadius: radius.md, padding: spacing.lg, width: 260, alignItems: 'center' },
   pinName: { fontSize: 18, fontWeight: '800', color: colors.ink },

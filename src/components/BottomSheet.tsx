@@ -5,11 +5,15 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withSpring,
   runOnJS,
   interpolate,
   Extrapolation,
+  Easing,
 } from 'react-native-reanimated';
+
+// Fluid, non-bouncy easing for the sheet.
+const OPEN = { duration: 320, easing: Easing.out(Easing.cubic) };
+const CLOSE = { duration: 240, easing: Easing.in(Easing.cubic) };
 import { colors, radius } from '@/theme';
 
 const { height: SCREEN_H } = Dimensions.get('window');
@@ -31,9 +35,7 @@ export function BottomSheet({
   const translateY = useSharedValue(SCREEN_H);
 
   useEffect(() => {
-    translateY.value = visible
-      ? withSpring(0, { damping: 18, stiffness: 160 })
-      : withTiming(SCREEN_H, { duration: 200 });
+    translateY.value = visible ? withTiming(0, OPEN) : withTiming(SCREEN_H, CLOSE);
   }, [visible]);
 
   const pan = Gesture.Pan()
@@ -42,9 +44,9 @@ export function BottomSheet({
     })
     .onEnd((e) => {
       if (translateY.value > 140 || e.velocityY > 800) {
-        translateY.value = withTiming(SCREEN_H, { duration: 200 }, () => runOnJS(onClose)());
+        translateY.value = withTiming(SCREEN_H, CLOSE, () => runOnJS(onClose)());
       } else {
-        translateY.value = withSpring(0, { damping: 18, stiffness: 160 });
+        translateY.value = withTiming(0, OPEN);
       }
     });
 

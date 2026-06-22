@@ -1,15 +1,12 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { View } from 'react-native';
 import { colors } from '@/theme';
-import { SosButton } from '@/components/SosButton';
 import { useTrailServices } from '@/location/useTrailServices';
 
 export default function UserLayout() {
   useTrailServices();
   return (
-    <View style={{ flex: 1 }}>
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -45,7 +42,5 @@ export default function UserLayout() {
         {/* Deep-link station route — hidden from the tab bar */}
         <Tabs.Screen name="station/[id]" options={{ href: null }} />
       </Tabs>
-      <SosButton />
-    </View>
   );
 }
