@@ -90,10 +90,16 @@ function Card({ s, index, x, active, onPress, onWaze }: { s: S; index: number; x
     return { transform: [{ scale }, { translateY }] };
   });
 
+  // Log what THIS card renders as when its active state flips (debug card-change styling).
+  React.useEffect(() => {
+    console.log('[Card render]', { index, name: s.name, active, borderWidth: active ? 2.5 : 1, bg: active ? v.tint : '#fff', stripeW: active ? 10 : 5 });
+  }, [active, index, s.name, v.tint]);
+
   return (
-    <Animated.View style={[{ width: CARD_W, opacity: active ? 1 : 0.85 }, animStyle]}>
+    <Animated.View style={[{ width: CARD_W }, animStyle]}>
       <View style={[
         styles.card,
+        { opacity: active ? 1 : 0.82 },
         active
           ? { borderColor: v.color, borderWidth: 2.5, backgroundColor: v.tint, shadowColor: v.color, shadowOpacity: 0.4, shadowRadius: 14, elevation: 12 }
           : { borderColor: colors.line, borderWidth: 1, backgroundColor: '#fff', shadowOpacity: 0.08, shadowRadius: 5, elevation: 3 },
