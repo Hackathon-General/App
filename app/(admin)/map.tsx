@@ -7,9 +7,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radius } from '@/theme';
 import { useContent } from '@/content/ContentProvider';
 import { useLive, type LivePin } from '@/features/live/useLive';
+import { useFeedPins } from '@/features/feed/feed';
 import { useTorch } from '@/features/torch/useTorch';
 import { BottomSheet } from '@/components/BottomSheet';
-import { MAP_PROVIDER, TrailPolyline, StationMarkers, TorchMarker, LivePinMarkers } from '@/map/markers';
+import { MAP_PROVIDER, TrailPolyline, StationMarkers, TorchMarker, LivePinMarkers, FeedPinMarkers } from '@/map/markers';
 
 const INITIAL: Region = { latitude: 32.72, longitude: 35.27, latitudeDelta: 0.55, longitudeDelta: 0.55 };
 
@@ -17,6 +18,7 @@ export default function AdminMap() {
   const insets = useSafeAreaInsets();
   const { stations, routes } = useContent();
   const pins = useLive();
+  const feedPins = useFeedPins();
   const { torch } = useTorch();
   const [sel, setSel] = useState<LivePin | null>(null);
 
@@ -29,6 +31,7 @@ export default function AdminMap() {
         <TrailPolyline waypoints={routes.waypoints} strokeWidth={3} />
         <StationMarkers stations={stations} />
         <LivePinMarkers pins={pins} onPress={setSel} />
+        <FeedPinMarkers pins={feedPins} />
         {torch && <TorchMarker lat={torch.lat} lng={torch.lng} />}
       </MapView>
 

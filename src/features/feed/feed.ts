@@ -35,6 +35,23 @@ export function useFeed(max = 50) {
   return { posts, loading };
 }
 
+/** Recent feed posts that the author opted to show on the live map (last `max`, with coords). */
+export function useFeedPins(max = 60) {
+  const [pins, setPins] = useState<FeedPost[]>([]);
+  useEffect(() => {
+    const q = query(collection(db, 'feed'), orderBy('createdAt', 'desc'), limit(max));
+    const unsub = onSnapshot(q, (snap) => {
+      setPins(
+        snap.docs
+          .map((d: any) => ({ id: d.id, ...(d.data() as object) }) as FeedPost)
+          .filter((p: FeedPost) => p.showOnMap && typeof p.lat === 'number' && typeof p.lng === 'number')
+      );
+    });
+    return () => unsub();
+  }, [max]);
+  return pins;
+}
+
 /** Upload an image to Storage feed/{uid}/{id}.jpg and return its download URL. */
 export async function uploadFeedImage(uid: string, localUri: string): Promise<string> {
   const id = `${Date.now()}`;

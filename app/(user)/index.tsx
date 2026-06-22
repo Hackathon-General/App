@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { distanceMeters } from '@/features/torch/distance';
-import { MAP_PROVIDER, LivePinMarkers, TorchMarker } from '@/map/markers';
+import { MAP_PROVIDER, LivePinMarkers, TorchMarker, FeedPinMarkers } from '@/map/markers';
 
 // Open Waze navigation to a point (mirrors the carmel-kinneret.org race-page Waze links).
 function openWaze(lat: number, lng: number) {
@@ -25,6 +25,7 @@ import { PulseRing } from '@/components/PulseRing';
 import { SosButton } from '@/components/SosButton';
 import { useTorch } from '@/features/torch/useTorch';
 import { useLive } from '@/features/live/useLive';
+import { useFeedPins } from '@/features/feed/feed';
 import { useAuth } from '@/auth/AuthProvider';
 
 const VALUE_KEYS = Object.keys(valueTheme) as ValueKey[];
@@ -54,6 +55,7 @@ export default function MapScreen() {
   const { torch } = useTorch();
   const { user } = useAuth();
   const livePins = useLive(); // everyone sharing publicly (phones + sensors), Snapchat-style
+  const feedPins = useFeedPins(); // community moments users opted to show on the map
   const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
   const [showList, setShowList] = useState(false); // toggleable proximity carousel
   const [activeIdx, setActiveIdx] = useState(0);   // carousel ↔ map highlighted station
@@ -272,6 +274,9 @@ export default function MapScreen() {
                 </View>
               </Marker>
             ))}
+
+          {/* Community moments shared to the map — photo-thumbnail pins */}
+          <FeedPinMarkers pins={feedPins} />
 
           {torch && (
             <Marker

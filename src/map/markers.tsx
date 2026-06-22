@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { Marker, Polyline, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, valueTheme } from '@/theme';
@@ -83,8 +84,36 @@ export function LivePinMarkers({ pins, excludeId, onPress }: { pins: LivePin[]; 
   );
 }
 
+/** Community moments shared to the map — photo-thumbnail pins (phones opted-in). */
+export function FeedPinMarkers({ pins, onPress }: { pins: { id: string; lat?: number; lng?: number; imageUrl?: string; authorName?: string; text?: string }[]; onPress?: (id: string) => void }) {
+  return (
+    <>
+      {pins.filter((p) => p.lat != null && p.lng != null).map((p) => (
+        <Marker
+          key={`feed-${p.id}`}
+          coordinate={{ latitude: p.lat!, longitude: p.lng! }}
+          title={p.authorName ?? 'מטייל/ת'}
+          description={p.text || 'רגע מהמסע'}
+          onPress={onPress ? () => onPress(p.id) : undefined}
+          anchor={{ x: 0.5, y: 1 }}
+        >
+          <View style={styles.feedMarker}>
+            {p.imageUrl
+              ? <Image source={{ uri: p.imageUrl }} style={styles.feedThumb} contentFit="cover" />
+              : <MaterialCommunityIcons name="image" size={18} color="#fff" />}
+            <View style={styles.feedTip} />
+          </View>
+        </Marker>
+      ))}
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
   stationBadge: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
+  feedMarker: { alignItems: 'center' },
+  feedThumb: { width: 42, height: 42, borderRadius: 9, borderWidth: 2, borderColor: colors.terracotta, backgroundColor: colors.line },
+  feedTip: { width: 0, height: 0, marginTop: -1, borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: colors.terracotta },
   torchMarker: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 3, elevation: 5 },
   personMarker: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.forest, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 3, elevation: 4 },
   sensorMarker: { backgroundColor: colors.sky },
