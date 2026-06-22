@@ -75,18 +75,19 @@ export const StationCarousel = forwardRef<CarouselHandle, {
 
 function Card({ s, index, x, active, onPress }: { s: S; index: number; x: SharedValue<number>; active: boolean; onPress: () => void }) {
   const v = valueTheme[s.value];
-  // Outer transform/opacity: centered card is bigger + fully opaque, neighbors shrink + dim.
+  // Outer transform/opacity. A flat plateau around center keeps the selected card FULLY opaque
+  // and biggest even when the resting offset is a few px off exact-center; neighbors shrink + dim.
   const animStyle = useAnimatedStyle(() => {
     const d = x.value - index * SNAP;
-    const scale = interpolate(d, [-SNAP, 0, SNAP], [0.82, 1.04, 0.82], Extrapolation.CLAMP);
-    const opacity = interpolate(d, [-SNAP, 0, SNAP], [0.45, 1, 0.45], Extrapolation.CLAMP);
+    const scale = interpolate(d, [-SNAP, -SNAP * 0.35, 0, SNAP * 0.35, SNAP], [0.82, 0.97, 1.04, 0.97, 0.82], Extrapolation.CLAMP);
+    const opacity = interpolate(d, [-SNAP, -SNAP * 0.35, 0, SNAP * 0.35, SNAP], [0.5, 1, 1, 1, 0.5], Extrapolation.CLAMP);
     const translateY = interpolate(d, [-SNAP, 0, SNAP], [18, 0, 18], Extrapolation.CLAMP);
     return { transform: [{ scale }, { translateY }], opacity };
   });
   // Inner card: colored border + glow animate with scroll position so the CENTERED card is
   // always the highlighted one (no lag from controlled state).
   const cardStyle = useAnimatedStyle(() => {
-    const center = interpolate(x.value - index * SNAP, [-SNAP, 0, SNAP], [0, 1, 0], Extrapolation.CLAMP);
+    const center = interpolate(x.value - index * SNAP, [-SNAP * 0.5, 0, SNAP * 0.5], [0, 1, 0], Extrapolation.CLAMP);
     return { borderWidth: 1 + center * 2, shadowOpacity: 0.1 + center * 0.3, shadowRadius: 6 + center * 12 };
   });
 
