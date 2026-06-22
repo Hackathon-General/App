@@ -29,14 +29,20 @@ export default function AdminLayout() {
         tabBarStyle: { backgroundColor: colors.deepGreen, borderTopColor: '#000' },
       }}
     >
+      {/* Primary live-ops tabs */}
       <Tabs.Screen name="map" options={{ title: 'מפה חיה', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="map-marker-radius" color={color} size={size} /> }} />
-      <Tabs.Screen name="nfr" options={{ title: 'משימות', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="map-marker-plus" color={color} size={size} /> }} />
       <Tabs.Screen name="alerts" options={{ title: 'התראות', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="bullhorn" color={color} size={size} /> }} />
-      <Tabs.Screen name="content" options={{ title: 'תוכן', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="file-document-edit" color={color} size={size} /> }} />
-      <Tabs.Screen name="event" options={{ title: 'המרוץ', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="run" color={color} size={size} /> }} />
-      <Tabs.Screen name="takehome" options={{ title: 'המשך', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="home-heart" color={color} size={size} /> }} />
+      <Tabs.Screen name="nfr" options={{ title: 'משימות', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="map-marker-plus" color={color} size={size} /> }} />
       <Tabs.Screen name="leaderboard" options={{ title: 'מובילים', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="trophy" color={color} size={size} /> }} />
-      <Tabs.Screen name="tests" options={{ title: 'בדיקות', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="test-tube" color={color} size={size} /> }} />
+      <Tabs.Screen name="manage" options={{ title: 'ניהול', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="cog" color={color} size={size} /> }} />
+
+      {/* Editors reached from the ניהול hub — hidden from the tab bar */}
+      <Tabs.Screen name="content" options={{ href: null }} />
+      <Tabs.Screen name="event" options={{ href: null }} />
+      <Tabs.Screen name="takehome" options={{ href: null }} />
+      <Tabs.Screen name="inbox" options={{ href: null }} />
+      <Tabs.Screen name="info" options={{ href: null }} />
+      <Tabs.Screen name="tests" options={{ href: null }} />
     </Tabs>
   );
 }

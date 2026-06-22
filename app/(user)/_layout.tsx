@@ -39,8 +39,11 @@ export default function UserLayout() {
           name="profile"
           options={{ title: 'פרופיל', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="account" color={color} size={size} /> }}
         />
-        {/* Deep-link station route — hidden from the tab bar */}
+        {/* Routes reached via navigation — hidden from the tab bar */}
         <Tabs.Screen name="station/[id]" options={{ href: null }} />
+        <Tabs.Screen name="contact" options={{ href: null }} />
+        <Tabs.Screen name="about" options={{ href: null }} />
+        <Tabs.Screen name="info" options={{ href: null }} />
       </Tabs>
   );
 }

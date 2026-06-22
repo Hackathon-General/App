@@ -5,6 +5,7 @@ import stationsJson from './stations.json';
 import eventsJson from './events.json';
 import routesJson from './routes.json';
 import he from './he.json';
+import infoJson from './info.json';
 
 export type Station = (typeof stationsJson.stations)[number];
 export type ValueKey = Station['value'];
@@ -14,6 +15,7 @@ interface ContentState {
   events: typeof eventsJson;
   routes: typeof routesJson;
   site: typeof he;
+  info: typeof infoJson;
   loading: boolean; // true until first Firestore snapshot (JSON shown meanwhile)
 }
 
@@ -23,6 +25,7 @@ const FALLBACK: ContentState = {
   events: eventsJson,
   routes: routesJson,
   site: he,
+  info: infoJson,
   loading: true,
 };
 
@@ -63,11 +66,16 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
       const data = d?.data?.();
       if (data) { console.log('[Content] content/site FROM FIRESTORE'); setState((s) => ({ ...s, site: { ...s.site, ...data } })); }
     });
+    const unsubInfo = onSnapshot(doc(db, 'content/info'), (d: any) => {
+      const data = d?.data?.();
+      if (data) { console.log('[Content] content/info FROM FIRESTORE'); setState((s) => ({ ...s, info: { ...s.info, ...data } })); }
+    });
 
     return () => {
       unsubStations();
       unsubEvent();
       unsubRoutes();
+      unsubInfo();
       unsubSite();
     };
   }, []);

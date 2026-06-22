@@ -9,7 +9,7 @@ import { colors, spacing, radius } from '@/theme';
 import { AdminHeader } from '@/components/AdminHeader';
 import {
   type RaceEvent, type Category, type ScheduleRow,
-  EMPTY_CATEGORY, EMPTY_LEG, EMPTY_TEAM, EMPTY_SUBRACE, EMPTY_ROUTE,
+  EMPTY_CATEGORY, EMPTY_LEG, EMPTY_TEAM, EMPTY_SUBRACE, EMPTY_ROUTE, EMPTY_WATER,
 } from '@/features/admin/raceTypes';
 
 const updateContent = httpsCallable(functions, 'updateContent');
@@ -113,6 +113,7 @@ function CategoryCard({ c, expanded, onToggle, onChange, onDelete }: {
         <View style={styles.catBody}>
           <F label="שם" v={c.name ?? ''} on={(t) => onChange({ name: t })} />
           <F label="תיאור" v={c.description ?? ''} on={(t) => onChange({ description: t })} multiline />
+          <F label="סטטוס הרשמה (לקטגוריה)" v={c.registrationStatus ?? ''} on={(t) => onChange({ registrationStatus: t })} />
 
           {c.id === 'walk' && (
             <ListEditor title="מסלולים" items={c.routes ?? []} add={() => onChange({ routes: [...(c.routes ?? []), EMPTY_ROUTE()] })}
@@ -121,6 +122,8 @@ function CategoryCard({ c, expanded, onToggle, onChange, onDelete }: {
                 <Row><F flex label="שם" v={r.name} on={(t) => upd({ name: t })} /><F flex label='ק"מ' v={String(r.km)} on={(t) => upd({ km: +t || 0 })} keyboard="numeric" /></Row>
                 <Row><F flex label="זינוק" v={r.start} on={(t) => upd({ start: t })} /><F flex label="סיום" v={r.finish} on={(t) => upd({ finish: t })} /></Row>
                 <Row><F flex label="הסעה" v={r.busDeparture ?? ''} on={(t) => upd({ busDeparture: t })} /><F flex label="דרגת קושי" v={r.difficulty ?? ''} on={(t) => upd({ difficulty: t })} /></Row>
+                <F label="קישור Israel Hiking" v={r.israelHiking ?? ''} on={(t) => upd({ israelHiking: t })} keyboard="url" />
+                <Row><F flex label="Garmin" v={r.garmin ?? ''} on={(t) => upd({ garmin: t })} keyboard="url" /><F flex label="GPX" v={r.gpx ?? ''} on={(t) => upd({ gpx: t })} keyboard="url" /></Row>
               </>)} />
           )}
 
@@ -128,29 +131,48 @@ function CategoryCard({ c, expanded, onToggle, onChange, onDelete }: {
             <Row><F flex label='סה"כ ק"מ' v={String(c.totalKm ?? '')} on={(t) => onChange({ totalKm: +t || 0 })} keyboard="numeric" /><F flex label="זינוק" v={c.start ?? ''} on={(t) => onChange({ start: t })} /></Row>
             <ListEditor title="צוותים" items={c.teams ?? []} add={() => onChange({ teams: [...(c.teams ?? []), EMPTY_TEAM()] })}
               onChange={(teams) => onChange({ teams })}
-              render={(tm, upd) => (<Row>
-                <F flex label="שם" v={tm.name} on={(t) => upd({ name: t })} />
-                <F flex label="רצים" v={String(tm.runners)} on={(t) => upd({ runners: +t || 0 })} keyboard="numeric" />
-                <F flex label="מחיר" v={String(tm.pricePerPerson)} on={(t) => upd({ pricePerPerson: +t || 0 })} keyboard="numeric" />
-              </Row>)} />
+              render={(tm, upd) => (<>
+                <Row>
+                  <F flex label="שם" v={tm.name} on={(t) => upd({ name: t })} />
+                  <F flex label="רצים" v={String(tm.runners)} on={(t) => upd({ runners: +t || 0 })} keyboard="numeric" />
+                  <F flex label="מחיר" v={String(tm.pricePerPerson)} on={(t) => upd({ pricePerPerson: +t || 0 })} keyboard="numeric" />
+                </Row>
+                <F label="תיאור" v={tm.description ?? ''} on={(t) => upd({ description: t })} multiline />
+                <F label="חניה" v={tm.parking ?? ''} on={(t) => upd({ parking: t })} multiline />
+              </>)} />
             <ListEditor title="מקטעים" items={c.legs ?? []} add={() => onChange({ legs: [...(c.legs ?? []), EMPTY_LEG((c.legs?.length ?? 0) + 1)] })}
               onChange={(legs) => onChange({ legs })}
               render={(lg, upd) => (<>
                 <Row><F flex label="מס׳" v={String(lg.n)} on={(t) => upd({ n: +t || 0 })} keyboard="numeric" /><F flex label='ק"מ' v={String(lg.km)} on={(t) => upd({ km: +t || 0 })} keyboard="numeric" /></Row>
                 <Row><F flex label="מ-" v={lg.from} on={(t) => upd({ from: t })} /><F flex label="עד-" v={lg.to} on={(t) => upd({ to: t })} /></Row>
+                <Row><F flex label="טיפוס+ (מ')" v={String(lg.gain ?? '')} on={(t) => upd({ gain: +t || 0 })} keyboard="numeric" /><F flex label="ירידה- (מ')" v={String(lg.loss ?? '')} on={(t) => upd({ loss: +t || 0 })} keyboard="numeric" /></Row>
+                <Row><F flex label="Garmin" v={lg.garmin ?? ''} on={(t) => upd({ garmin: t })} keyboard="url" /><F flex label="GPX" v={lg.gpx ?? ''} on={(t) => upd({ gpx: t })} keyboard="url" /></Row>
               </>)} />
           </>)}
 
           {c.id === 'ultra' && (<>
             <F label="דרישות" v={c.requirement ?? ''} on={(t) => onChange({ requirement: t })} />
+            <Toggle label="דורש העלאת מבחן ארגומטרי" value={!!c.requirementUpload} onToggle={() => onChange({ requirementUpload: !c.requirementUpload })} />
+            <F label="הטבות (perks)" v={c.perks ?? ''} on={(t) => onChange({ perks: t })} multiline />
             <ListEditor title="מקצים" items={c.subRaces ?? []} add={() => onChange({ subRaces: [...(c.subRaces ?? []), EMPTY_SUBRACE()] })}
               onChange={(subRaces) => onChange({ subRaces })}
               render={(sr, upd) => (<>
                 <Row><F flex label="שם" v={sr.name} on={(t) => upd({ name: t })} /><F flex label='ק"מ' v={String(sr.km)} on={(t) => upd({ km: +t || 0 })} keyboard="numeric" /></Row>
-                <Row><F flex label="זינוק" v={sr.startTime ?? ''} on={(t) => upd({ startTime: t })} /><F flex label="cutoff" v={sr.cutoff ?? ''} on={(t) => upd({ cutoff: t })} /></Row>
-                <Row><F flex label="טיפוס+" v={String(sr.gain ?? '')} on={(t) => upd({ gain: +t || 0 })} keyboard="numeric" /><F flex label="מחיר" v={String(sr.price ?? '')} on={(t) => upd({ price: +t || 0 })} keyboard="numeric" /></Row>
+                <Row><F flex label="זינוק" v={sr.start ?? ''} on={(t) => upd({ start: t })} /><F flex label="סיום" v={sr.finish ?? ''} on={(t) => upd({ finish: t })} /></Row>
+                <Row><F flex label="שעת זינוק" v={sr.startTime ?? ''} on={(t) => upd({ startTime: t })} /><F flex label="cutoff" v={sr.cutoff ?? ''} on={(t) => upd({ cutoff: t })} /></Row>
+                <Row><F flex label="טיפוס+" v={String(sr.gain ?? '')} on={(t) => upd({ gain: +t || 0 })} keyboard="numeric" /><F flex label="ירידה-" v={String(sr.loss ?? '')} on={(t) => upd({ loss: +t || 0 })} keyboard="numeric" /><F flex label="מחיר" v={String(sr.price ?? '')} on={(t) => upd({ price: +t || 0 })} keyboard="numeric" /></Row>
+                <F label="קישור Israel Hiking" v={sr.israelHiking ?? ''} on={(t) => upd({ israelHiking: t })} keyboard="url" />
+                <F label="Garmin" v={sr.garmin ?? ''} on={(t) => upd({ garmin: t })} keyboard="url" />
               </>)} />
           </>)}
+
+          {/* Water/aid stations — every category */}
+          <ListEditor title="תחנות מים" items={c.waterStations ?? []} add={() => onChange({ waterStations: [...(c.waterStations ?? []), EMPTY_WATER()] })}
+            onChange={(waterStations) => onChange({ waterStations })}
+            render={(w, upd) => (<>
+              <Row><F flex label="שם" v={w.name} on={(t) => upd({ name: t })} /><F flex label='ק"מ' v={String(w.km ?? '')} on={(t) => upd({ km: +t || 0 })} keyboard="numeric" /></Row>
+              <Row><F flex label="lat" v={String(w.lat ?? '')} on={(t) => upd({ lat: +t || 0 })} keyboard="numeric" /><F flex label="lng" v={String(w.lng ?? '')} on={(t) => upd({ lng: +t || 0 })} keyboard="numeric" /></Row>
+            </>)} />
         </View>
       )}
     </View>
@@ -202,6 +224,14 @@ function F({ label, v, on, multiline, keyboard, flex }: { label: string; v: stri
   );
 }
 const Row = ({ children }: { children: React.ReactNode }) => <View style={styles.row}>{children}</View>;
+function Toggle({ label, value, onToggle }: { label: string; value: boolean; onToggle: () => void }) {
+  return (
+    <TouchableOpacity style={styles.toggle} onPress={onToggle} activeOpacity={0.8}>
+      <MaterialCommunityIcons name={value ? 'checkbox-marked' : 'checkbox-blank-outline'} size={22} color={value ? colors.forest : colors.muted} />
+      <Text style={styles.toggleTxt}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
 function Section({ icon, text }: { icon: any; text: string }) {
   return <View style={styles.section}><MaterialCommunityIcons name={icon} size={15} color={colors.forest} /><Text style={styles.sectionTxt}>{text}</Text></View>;
 }
@@ -229,6 +259,8 @@ const styles = StyleSheet.create({
   addItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8 },
   addItemTxt: { color: colors.forest, fontWeight: '700' },
   schedRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  toggle: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8, paddingVertical: 8, marginBottom: spacing.xs },
+  toggleTxt: { flex: 1, fontSize: 14, color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
   saveBar: { padding: spacing.md, paddingBottom: spacing.lg, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: colors.line },
   save: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, backgroundColor: colors.forest, paddingVertical: 15, borderRadius: radius.pill },
   saveTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },

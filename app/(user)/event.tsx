@@ -5,10 +5,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radius } from '@/theme';
 import { content } from '@/content';
 import { useContent } from '@/content/ContentProvider';
+
+const openWaze = (lat?: number, lng?: number) => {
+  if (lat == null || lng == null) return;
+  Haptics.selectionAsync().catch(() => {});
+  Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
+};
 
 const IMAGES: Record<string, any> = {
   'walk.jpg': require('../../assets/brand/walk.jpg'),
@@ -66,30 +73,68 @@ export default function EventScreen() {
               </View>
             </View>
             <View style={styles.body}>
+              {!!c.registrationStatus && (
+                <View style={styles.catStatus}><MaterialCommunityIcons name="information-outline" size={13} color={colors.terracotta} /><Text style={styles.catStatusTxt}>{c.registrationStatus}</Text></View>
+              )}
               <Text style={styles.cardDesc}>{c.description}</Text>
+              {!!c.requirement && <View style={styles.reqRow}><MaterialCommunityIcons name="alert-decagram" size={14} color={colors.gold} /><Text style={styles.reqTxt}>{c.requirement}</Text></View>}
 
               {/* Walk routes */}
               {c.routes?.map((r: any) => (
-                <DetailRow key={r.name} icon="map-marker-distance" title={r.name}
-                  detail={`${r.km} ק"מ · ${r.start} ← ${r.finish}`} extra={r.busDeparture ? `הסעה ${r.busDeparture}` : undefined} />
+                <View key={r.name}>
+                  <DetailRow icon="map-marker-distance" title={r.name}
+                    detail={`${r.km} ק"מ · ${r.start} ← ${r.finish}`} extra={r.busDeparture ? `הסעה ${r.busDeparture}` : undefined} />
+                  <FileLinks files={r} />
+                </View>
               ))}
               {/* Relay legs */}
               {c.legs?.map((l: any) => (
-                <DetailRow key={l.n} icon="flag" title={`מקטע ${l.n}`} detail={`${l.from} ← ${l.to}`} extra={`${l.km} ק"מ`} />
+                <View key={l.n}>
+                  <DetailRow icon="flag" title={`מקטע ${l.n}: ${l.from} ← ${l.to}`}
+                    detail={`${l.km} ק"מ${l.gain != null ? ` · טיפוס +${l.gain}מ׳` : ''}${l.loss != null ? ` · ירידה ${l.loss}מ׳` : ''}`}
+                    extra={`${l.km} ק"מ`} />
+                  <FileLinks files={l} />
+                </View>
               ))}
               {/* Ultra subraces */}
               {c.subRaces?.map((s: any) => (
-                <DetailRow key={s.name} icon="run-fast" title={s.name}
-                  detail={`${s.km} ק"מ · זינוק ${s.startTime} · גובה +${s.gain}מ׳`} extra={`₪${s.price}`} />
+                <View key={s.name}>
+                  <DetailRow icon="run-fast" title={s.name}
+                    detail={`${s.km} ק"מ · זינוק ${s.startTime ?? ''}${s.gain != null ? ` · +${s.gain}מ׳` : ''}${s.cutoff ? ` · ניתוק ${s.cutoff}` : ''}`}
+                    extra={s.price ? `₪${s.price}` : undefined} />
+                  <FileLinks files={s} />
+                </View>
               ))}
-              {/* Teams (relay) */}
-              {c.teams && (
+              {/* Teams (relay) — chips + descriptions */}
+              {c.teams && (<>
                 <View style={styles.teamRow}>
                   {c.teams.map((t: any) => (
                     <View key={t.name} style={styles.teamChip}>
                       <Text style={styles.teamName}>{t.name}</Text>
+                      <Text style={styles.teamSub}>{t.runners} רצים</Text>
                       <Text style={styles.teamPrice}>₪{t.pricePerPerson}</Text>
                     </View>
+                  ))}
+                </View>
+                {c.teams.filter((t: any) => t.description).map((t: any) => (
+                  <View key={`d-${t.name}`} style={styles.teamDesc}>
+                    <Text style={styles.teamDescTitle}>{t.name}</Text>
+                    <Text style={styles.teamDescBody}>{t.description}</Text>
+                  </View>
+                ))}
+              </>)}
+              {!!c.perks && <View style={styles.perks}><MaterialCommunityIcons name="star-circle" size={15} color={colors.gold} /><Text style={styles.perksTxt}>{c.perks}</Text></View>}
+
+              {/* Water stations */}
+              {c.waterStations?.length > 0 && (
+                <View style={styles.water}>
+                  <View style={styles.waterHead}><MaterialCommunityIcons name="water" size={15} color={colors.sky} /><Text style={styles.waterTitle}>תחנות מים ({c.waterStations.length})</Text></View>
+                  {c.waterStations.map((w: any, wi: number) => (
+                    <TouchableOpacity key={wi} style={styles.waterRow} disabled={w.lat == null} onPress={() => openWaze(w.lat, w.lng)} activeOpacity={0.7}>
+                      <Text style={styles.waterKm}>{w.km != null ? `${w.km} ק"מ` : ''}</Text>
+                      <Text style={styles.waterName}>{w.name}</Text>
+                      {w.lat != null && <MaterialCommunityIcons name="navigation-variant" size={16} color={colors.sky} />}
+                    </TouchableOpacity>
                   ))}
                 </View>
               )}
@@ -113,12 +158,32 @@ export default function EventScreen() {
           </View>
         </View>
 
+        {/* Community quick links */}
+        <View style={styles.quickGrid}>
+          <QuickLink icon="hand-heart" label="התנדבות" onPress={() => router.push('/(user)/contact?tab=volunteer' as never)} />
+          <QuickLink icon="account-search" label="חיפוש צוות" onPress={() => router.push('/(user)/contact?tab=teamFinder' as never)} />
+          <QuickLink icon="information" label="מידע ותקנון" onPress={() => router.push('/(user)/info' as never)} />
+          <QuickLink icon="heart-circle" label="מי אנחנו" onPress={() => router.push('/(user)/about' as never)} />
+        </View>
+
         {/* Actions */}
         <View style={styles.actions}>
+          {!!events.links?.register && (
+            <TouchableOpacity style={styles.donate} activeOpacity={0.85}
+              onPress={() => { Haptics.selectionAsync().catch(() => {}); Linking.openURL(events.links.register!); }}>
+              <MaterialCommunityIcons name="clipboard-check" size={18} color="#fff" />
+              <Text style={styles.donateTxt}>הרשמה למרוץ</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.donate} activeOpacity={0.85}
             onPress={() => { Haptics.selectionAsync().catch(() => {}); Linking.openURL(events.links.donate); }}>
             <MaterialCommunityIcons name="heart" size={18} color="#fff" />
             <Text style={styles.donateTxt}>{content.actions.donate}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.wa} activeOpacity={0.85}
+            onPress={() => router.push('/(user)/contact?tab=contact' as never)}>
+            <MaterialCommunityIcons name="email" size={18} color={colors.forest} />
+            <Text style={styles.waTxt}>יצירת קשר</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.wa} activeOpacity={0.85}
             onPress={() => Linking.openURL(`https://wa.me/${events.links.whatsapp}`)}>
@@ -137,6 +202,35 @@ function HeroStat({ num, label }: { num: string; label: string }) {
     <View style={styles.heroStat}>
       <Text style={styles.heroStatNum} numberOfLines={1}>{num}</Text>
       <Text style={styles.heroStatLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function QuickLink({ icon, label, onPress }: { icon: any; label: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={styles.quick} activeOpacity={0.85} onPress={() => { Haptics.selectionAsync().catch(() => {}); onPress(); }}>
+      <View style={styles.quickIcon}><MaterialCommunityIcons name={icon} size={20} color={colors.forest} /></View>
+      <Text style={styles.quickLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function FileLinks({ files }: { files: { gpx?: string; garmin?: string; israelHiking?: string } }) {
+  const links = [
+    { url: files.israelHiking, label: 'מפה', icon: 'map' as const },
+    { url: files.garmin, label: 'Garmin', icon: 'watch' as const },
+    { url: files.gpx, label: 'GPX', icon: 'download' as const },
+  ].filter((l) => !!l.url);
+  if (links.length === 0) return null;
+  return (
+    <View style={styles.fileLinks}>
+      {links.map((l) => (
+        <TouchableOpacity key={l.label} style={styles.fileBtn} activeOpacity={0.8}
+          onPress={() => { Haptics.selectionAsync().catch(() => {}); Linking.openURL(l.url!); }}>
+          <MaterialCommunityIcons name={l.icon} size={13} color={colors.forest} />
+          <Text style={styles.fileBtnTxt}>{l.label}</Text>
+        </TouchableOpacity>
+      ))}
     </View>
   );
 }
@@ -182,10 +276,33 @@ const styles = StyleSheet.create({
   detailTitle: { fontWeight: '700', color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
   detailSub: { fontSize: 12, color: colors.muted, textAlign: 'right', writingDirection: 'rtl', marginTop: 1 },
   detailExtra: { fontWeight: '800', color: colors.forest, fontSize: 13 },
+  catStatus: { flexDirection: 'row-reverse', alignItems: 'center', gap: 4, alignSelf: 'flex-end', backgroundColor: '#fdeee9', paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, marginBottom: spacing.sm },
+  catStatusTxt: { color: colors.terracotta, fontWeight: '700', fontSize: 12 },
+  reqRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5, marginBottom: spacing.sm },
+  reqTxt: { color: colors.ink, fontSize: 13, fontWeight: '600', flex: 1, textAlign: 'right', writingDirection: 'rtl' },
+  fileLinks: { flexDirection: 'row-reverse', gap: 6, marginTop: 4, marginBottom: 4, flexWrap: 'wrap' },
+  fileBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
+  fileBtnTxt: { color: colors.forest, fontWeight: '700', fontSize: 12 },
   teamRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   teamChip: { flex: 1, backgroundColor: colors.bg, borderRadius: radius.sm, paddingVertical: 8, alignItems: 'center' },
   teamName: { fontWeight: '700', color: colors.ink, fontSize: 13 },
+  teamSub: { fontSize: 11, color: colors.muted, marginTop: 1 },
   teamPrice: { color: colors.terracotta, fontWeight: '800', marginTop: 2 },
+  teamDesc: { backgroundColor: colors.bg, borderRadius: radius.sm, padding: spacing.sm, marginTop: spacing.sm },
+  teamDescTitle: { fontWeight: '800', color: colors.ink, textAlign: 'right', writingDirection: 'rtl', marginBottom: 2 },
+  teamDescBody: { fontSize: 12, color: colors.muted, lineHeight: 18, textAlign: 'right', writingDirection: 'rtl' },
+  perks: { flexDirection: 'row-reverse', alignItems: 'center', gap: 6, backgroundColor: '#fff8e6', borderRadius: radius.sm, padding: spacing.sm, marginTop: spacing.sm },
+  perksTxt: { flex: 1, fontSize: 12, color: colors.ink, textAlign: 'right', writingDirection: 'rtl', lineHeight: 18 },
+  water: { marginTop: spacing.sm, backgroundColor: colors.bg, borderRadius: radius.sm, padding: spacing.sm },
+  waterHead: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5, marginBottom: spacing.xs },
+  waterTitle: { fontWeight: '800', color: colors.ink, fontSize: 13 },
+  waterRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm, paddingVertical: 6, borderTopWidth: 1, borderTopColor: colors.line },
+  waterName: { flex: 1, fontSize: 13, color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
+  waterKm: { fontSize: 12, color: colors.muted, fontWeight: '700', minWidth: 52 },
+  quickGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg, marginHorizontal: spacing.md },
+  quick: { width: '47%', flexGrow: 1, flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm, backgroundColor: '#fff', borderRadius: radius.md, padding: spacing.md, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  quickIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
+  quickLabel: { fontWeight: '800', color: colors.ink, fontSize: 14, textAlign: 'right', writingDirection: 'rtl' },
   sectionH: { fontSize: 18, fontWeight: '900', color: colors.forest, textAlign: 'right', marginTop: spacing.lg, marginHorizontal: spacing.lg, writingDirection: 'rtl' },
   schedRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line },
   schedTime: { fontWeight: '900', color: colors.terracotta, width: 70, fontSize: 13 },
