@@ -6,6 +6,8 @@ import * as Haptics from 'expo-haptics';
 import { collection, addDoc } from '@react-native-firebase/firestore';
 import { db } from '@/firebase';
 import { useContent } from '@/content/ContentProvider';
+import { useNfrs } from '@/features/missions/useNfrs';
+import { PulseRing } from '@/components/PulseRing';
 import { colors, spacing, radius } from '@/theme';
 import { AdminHeader } from '@/components/AdminHeader';
 import { MAP_PROVIDER, StationMarkers } from '@/map/markers';
@@ -16,6 +18,7 @@ const RADII = [100, 150, 300, 500];
 /** Admin places an NFR mission on the map (write goes to Firestore; rules require admin claim). */
 export default function NfrScreen() {
   const { stations } = useContent();
+  const nfrs = useNfrs();
   const [point, setPoint] = useState<{ lat: number; lng: number } | null>(null);
   const [title, setTitle] = useState('');
   const [task, setTask] = useState('');
@@ -40,12 +43,26 @@ export default function NfrScreen() {
 
   return (
     <View style={styles.c}>
-      <AdminHeader title="הצבת משימה" subtitle="הקש/י על המפה לקביעת מיקום המשימה" icon="map-marker-plus" />
+      <AdminHeader title="הצבת משימה" subtitle={`${nfrs.length} משימות פעילות בשטח · הקש/י על המפה`} icon="map-marker-plus" />
       <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.mapCard}>
           <MapView style={StyleSheet.absoluteFill} provider={MAP_PROVIDER} initialRegion={INITIAL}
             onPress={(e) => { Haptics.selectionAsync().catch(() => {}); setPoint({ lat: e.nativeEvent.coordinate.latitude, lng: e.nativeEvent.coordinate.longitude }); }}>
             <StationMarkers stations={stations} />
+
+            {/* Existing live missions — numbered, pulsing markers + their radius */}
+            {nfrs.map((n, i) => (
+              <React.Fragment key={n.id}>
+                <Circle center={{ latitude: n.lat, longitude: n.lng }} radius={n.radius ?? 150} strokeColor={colors.forest} fillColor="rgba(46,125,50,0.12)" />
+                <Marker coordinate={{ latitude: n.lat, longitude: n.lng }} title={n.title} description={n.task} anchor={{ x: 0.5, y: 0.5 }}>
+                  <View style={styles.nfrMarker}>
+                    <View style={styles.pulse} pointerEvents="none"><PulseRing size={56} color={colors.forest} rings={2} /></View>
+                    <View style={styles.nfrPin}><Text style={styles.nfrNum}>{i + 1}</Text></View>
+                  </View>
+                </Marker>
+              </React.Fragment>
+            ))}
+
             {point && (
               <>
                 <Marker coordinate={{ latitude: point.lat, longitude: point.lng }} pinColor={colors.terracotta} />
@@ -98,6 +115,10 @@ const styles = StyleSheet.create({
   c: { flex: 1, backgroundColor: colors.bg, direction: 'rtl' },
   mapCard: { height: 240, borderRadius: radius.lg, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 6, elevation: 3 },
   mapHint: { position: 'absolute', top: 12, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.pill },
+  nfrMarker: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
+  pulse: { position: 'absolute', width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
+  nfrPin: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.forest, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  nfrNum: { color: '#fff', fontWeight: '900', fontSize: 14 },
   mapHintTxt: { color: '#fff', fontWeight: '700' },
   label: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.md, marginBottom: 6 },
   labelTxt: { fontSize: 13, fontWeight: '800', color: colors.terracotta, writingDirection: 'rtl' },

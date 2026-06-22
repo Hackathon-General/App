@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import MapView, { type Region } from 'react-native-maps';
+import MapView, { Marker, Circle, type Region } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { colors, spacing, radius } from '@/theme';
 import { useContent } from '@/content/ContentProvider';
 import { useLive, type LivePin } from '@/features/live/useLive';
 import { useFeedPins } from '@/features/feed/feed';
+import { useNfrs } from '@/features/missions/useNfrs';
 import { useTorch } from '@/features/torch/useTorch';
 import { BottomSheet } from '@/components/BottomSheet';
 import { MAP_PROVIDER, TrailPolyline, StationMarkers, TorchMarker, LivePinMarkers, FeedPinMarkers } from '@/map/markers';
@@ -19,6 +20,7 @@ export default function AdminMap() {
   const { stations, routes } = useContent();
   const pins = useLive();
   const feedPins = useFeedPins();
+  const nfrs = useNfrs();
   const { torch } = useTorch();
   const [sel, setSel] = useState<LivePin | null>(null);
 
@@ -30,6 +32,14 @@ export default function AdminMap() {
       <MapView style={StyleSheet.absoluteFill} provider={MAP_PROVIDER} initialRegion={INITIAL}>
         <TrailPolyline waypoints={routes.waypoints} strokeWidth={3} />
         <StationMarkers stations={stations} />
+        {nfrs.map((n, i) => (
+          <React.Fragment key={n.id}>
+            <Circle center={{ latitude: n.lat, longitude: n.lng }} radius={n.radius ?? 150} strokeColor={colors.forest} fillColor="rgba(46,125,50,0.10)" />
+            <Marker coordinate={{ latitude: n.lat, longitude: n.lng }} title={n.title} description={n.task} anchor={{ x: 0.5, y: 0.5 }}>
+              <View style={styles.nfrPin}><Text style={styles.nfrNum}>{i + 1}</Text></View>
+            </Marker>
+          </React.Fragment>
+        ))}
         <LivePinMarkers pins={pins} onPress={setSel} />
         <FeedPinMarkers pins={feedPins} />
         {torch && <TorchMarker lat={torch.lat} lng={torch.lng} />}
@@ -69,6 +79,8 @@ const styles = StyleSheet.create({
   hudStatRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999 },
   hudStat: { fontSize: 13, color: colors.ink, fontWeight: '700' },
   backBtn: { position: 'absolute', right: spacing.md, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 3, elevation: 4 },
+  nfrPin: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.forest, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  nfrNum: { color: '#fff', fontWeight: '900', fontSize: 13 },
   pinCard: { padding: spacing.lg, alignItems: 'center', direction: 'rtl' },
   pinName: { fontSize: 18, fontWeight: '800', color: colors.ink, writingDirection: 'rtl' },
   pinKind: { color: colors.terracotta, fontWeight: '700', marginTop: 4, writingDirection: 'rtl' },
