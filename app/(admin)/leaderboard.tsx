@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
   bankLabel: { color: '#fff', marginTop: 2 },
   row: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: radius.sm, padding: 14, marginBottom: 8 },
   rank: { width: 28, fontWeight: '900', color: colors.terracotta, fontSize: 16 },
-  name: { flex: 1, textAlign: 'right', color: colors.ink, fontWeight: '600' },
+  name: { flex: 1, textAlign: 'right', color: colors.ink, fontWeight: '600', writingDirection: 'rtl' },
   km: { color: colors.forest, fontWeight: '800' },
   empty: { textAlign: 'center', color: colors.muted, marginTop: 40 },
 });

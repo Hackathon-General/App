@@ -98,7 +98,7 @@ function PostCard({ post, index = 0 }: { post: FeedPost; index?: number }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, direction: 'rtl' },
-  header: { fontSize: 20, fontWeight: '800', color: colors.ink, textAlign: 'center', paddingVertical: spacing.sm },
+  header: { fontSize: 20, fontWeight: '800', color: colors.ink, textAlign: 'center', paddingVertical: spacing.sm, writingDirection: 'rtl' },
   emptyWrap: { alignItems: 'center', marginTop: 80, gap: spacing.sm },
   empty: { textAlign: 'center', color: colors.muted, fontSize: 16, writingDirection: 'rtl' },
   card: { backgroundColor: '#fff', borderRadius: radius.lg, marginBottom: spacing.md, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },

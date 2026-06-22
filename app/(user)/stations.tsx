@@ -117,7 +117,7 @@ function Tag({ label, color, solid }: { label: string; color: string; solid?: bo
 
 const styles = StyleSheet.create({
   c: { flex: 1, backgroundColor: colors.bg, direction: 'rtl' },
-  h: { fontSize: 20, fontWeight: '800', color: colors.ink, textAlign: 'center', marginBottom: spacing.sm },
+  h: { fontSize: 20, fontWeight: '800', color: colors.ink, textAlign: 'center', marginBottom: spacing.sm, writingDirection: 'rtl' },
   filterBar: { height: 44, marginBottom: spacing.xs },
   row: { gap: spacing.sm, paddingHorizontal: spacing.md, alignItems: 'center' },
   sortRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },

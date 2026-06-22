@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { I18nManager } from 'react-native';
+import { I18nManager, DevSettings } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -7,12 +7,14 @@ import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
 import { colors } from '@/theme';
 
-// Force RTL for the Hebrew app.
-try {
-  I18nManager.allowRTL(true);
+// Force RTL for the Hebrew app. forceRTL only takes effect after a reload, so if the app
+// launched LTR, set the flag and reload ONCE so the whole native layout flips to RTL.
+I18nManager.allowRTL(true);
+if (!I18nManager.isRTL) {
   I18nManager.forceRTL(true);
-} catch {
-  /* noop */
+  if (__DEV__ && DevSettings?.reload) {
+    setTimeout(() => DevSettings.reload(), 0);
+  }
 }
 
 SplashScreen.preventAutoHideAsync().catch(() => {});

@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     paddingTop: 8,
-    maxHeight: '82%',
+    maxHeight: '72%', // stays in the lower portion, never collides with the page header
   },
   handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: colors.line, marginBottom: 8 },
 });
