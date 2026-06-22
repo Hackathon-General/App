@@ -419,8 +419,8 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   title: { fontSize: 22, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: spacing.sm },
-  filterBar: { height: 40 },
-  filters: { gap: spacing.sm, alignItems: 'center', flexDirection: 'row-reverse', paddingHorizontal: 2 },
+  filterBar: { height: 40, direction: 'rtl' },
+  filters: { gap: spacing.sm, alignItems: 'center', flexDirection: 'row', paddingHorizontal: 2 },
   chip: { flexDirection: 'row-reverse', gap: 5, height: 34, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, elevation: 2 },
   chipTxt: { fontWeight: '800', fontSize: 13 },
   mapWrap: {

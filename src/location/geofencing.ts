@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import { ref, set, serverTimestamp } from '@react-native-firebase/database';
 import { rtdb, auth } from '@/firebase';
 import { stations } from '@/content';
+import { recordVisit } from '@/features/missions/visits';
 
 export const LIVE_LOCATION_TASK = 'ck-live-location';
 export const GEOFENCE_TASK = 'ck-geofence';
@@ -60,7 +61,7 @@ TaskManager.defineTask(LIVE_LOCATION_TASK, async ({ data, error }: any) => {
   }
 });
 
-/** Geofence task: when entering a station region, fire a local mission notification. */
+/** Geofence task: when entering a station region, fire a local mission notification + record the visit. */
 TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error }: any) => {
   if (error || !data) return;
   const { eventType, region } = data;
@@ -76,6 +77,8 @@ TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error }: any) => {
     },
     trigger: null,
   });
+  // Auto-record the visit (also works in the background); fires take-home when all visited.
+  await recordVisit(station.id, stations.length).catch(() => {});
 });
 
 /** Start background live-location updates (throttled: ≥25m / ≥10s). */

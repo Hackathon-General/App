@@ -3,6 +3,7 @@ import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { useContent, type Station } from '@/content/ContentProvider';
 import { distanceMeters } from '@/features/torch/distance';
+import { recordVisit } from './visits';
 
 const TRIGGER_RADIUS_M = 120; // matches the background geofence radius
 const REARM_RADIUS_M = 250;   // must leave this far before the same station can re-fire
@@ -34,6 +35,8 @@ export function useGeofenceMission() {
               firedRef.current.add(s.id);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
               setActive((cur) => cur ?? s); // don't stomp an open mission
+              // Auto-record the visit; fires the take-home notification when all are visited.
+              recordVisit(s.id, stations.length).catch(() => {});
             } else if (d > REARM_RADIUS_M && firedRef.current.has(s.id)) {
               firedRef.current.delete(s.id); // re-arm after leaving
             }
