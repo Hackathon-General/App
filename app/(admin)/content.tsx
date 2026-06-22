@@ -50,6 +50,7 @@ export default function AdminContent() {
           title={edit.id ? 'עריכת תחנה' : 'תחנה חדשה'}
           subtitle={edit.name || 'מלא/י את פרטי התחנה'}
           icon="map-marker-edit"
+          showBackToApp={false}
           right={
             <TouchableOpacity onPress={() => setEdit(null)} hitSlop={8} style={styles.headerClose}>
               <MaterialCommunityIcons name="close" size={20} color="#fff" />

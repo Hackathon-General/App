@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import MapView, { type Region } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radius } from '@/theme';
 import { useContent } from '@/content/ContentProvider';
@@ -41,6 +42,10 @@ export default function AdminMap() {
         </View>
       </View>
 
+      <TouchableOpacity style={[styles.backBtn, { top: insets.top + spacing.sm }]} onPress={() => router.replace('/(user)')} hitSlop={8}>
+        <MaterialCommunityIcons name="exit-to-app" size={18} color={colors.ink} />
+      </TouchableOpacity>
+
       <BottomSheet visible={!!sel} onClose={() => setSel(null)}>
         {sel && (
           <View style={styles.pinCard}>
@@ -60,6 +65,7 @@ const styles = StyleSheet.create({
   hudTitle: { fontSize: 18, fontWeight: '900', color: colors.ink, textShadowColor: '#fff', textShadowRadius: 6, writingDirection: 'rtl' },
   hudStatRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999 },
   hudStat: { fontSize: 13, color: colors.ink, fontWeight: '700' },
+  backBtn: { position: 'absolute', right: spacing.md, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 3, elevation: 4 },
   pinCard: { padding: spacing.lg, alignItems: 'center', direction: 'rtl' },
   pinName: { fontSize: 18, fontWeight: '800', color: colors.ink, writingDirection: 'rtl' },
   pinKind: { color: colors.terracotta, fontWeight: '700', marginTop: 4, writingDirection: 'rtl' },
