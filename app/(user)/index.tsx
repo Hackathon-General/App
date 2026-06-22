@@ -94,6 +94,7 @@ export default function MapScreen() {
 
   // Carousel moved → highlight + zoom to that station.
   const onCarouselActive = (i: number) => {
+    console.log('[MapScreen] onCarouselActive → setActiveIdx', i, 'prev', activeIdx, 'station', orderedStations[i]?.name);
     setActiveIdx(i);
     const s = orderedStations[i];
     if (s) focusStation(s);

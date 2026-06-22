@@ -1,6 +1,6 @@
 import React, { useRef, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, StyleSheet, Dimensions, Pressable } from 'react-native';
-import Animated, { useAnimatedScrollHandler, useSharedValue, useAnimatedStyle, interpolate, Extrapolation, runOnJS, type SharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedScrollHandler, useSharedValue, useAnimatedStyle, useDerivedValue, interpolate, Extrapolation, runOnJS, type SharedValue } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors, spacing, radius, valueTheme } from '@/theme';
@@ -53,13 +53,23 @@ export const StationCarousel = forwardRef<CarouselHandle, {
     }
   };
 
+  const logScroll = (offset: number, idx: number) => {
+    console.log('[Carousel] scroll', { offsetX: Math.round(offset), SNAP: Math.round(SNAP), centeredIndex: idx, activeIndex });
+  };
+
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (e) => {
       x.value = e.contentOffset.x;
+      const idx = Math.round(e.contentOffset.x / SNAP);
       // live highlight + map sync mid-drag (not only on momentum end)
-      runOnJS(notify)(Math.round(e.contentOffset.x / SNAP));
+      runOnJS(notify)(idx);
+    },
+    onMomentumEnd: (e) => {
+      runOnJS(logScroll)(e.contentOffset.x, Math.round(e.contentOffset.x / SNAP));
     },
   });
+
+  console.log('[Carousel] render', { count: stations.length, activeIndex, CARD_W: Math.round(CARD_W), SNAP: Math.round(SNAP) });
 
   return (
     <Animated.ScrollView
@@ -90,9 +100,21 @@ function Card({ s, index, x, active, onPress, onWaze }: { s: S; index: number; x
     return { transform: [{ scale }, { translateY }] };
   });
 
+  // UI-thread → JS logger: report the ACTUAL computed scale for this card whenever it's centered.
+  const logAnim = (d: number, scale: number) => {
+    console.log('[Card anim]', { index, name: s.name, d: Math.round(d), scale: scale.toFixed(3), active });
+  };
+  useDerivedValue(() => {
+    const d = x.value - index * SNAP;
+    if (Math.abs(d) < 6) { // only when this card is essentially centered
+      const scale = interpolate(d, [-SNAP, 0, SNAP], [0.86, 1.04, 0.86], Extrapolation.CLAMP);
+      runOnJS(logAnim)(d, scale);
+    }
+  });
+
   // Log what THIS card renders as when its active state flips (debug card-change styling).
   React.useEffect(() => {
-    console.log('[Card render]', { index, name: s.name, active, borderWidth: active ? 2.5 : 1, bg: active ? v.tint : '#fff', stripeW: active ? 10 : 5 });
+    console.log('[Card render]', { index, name: s.name, active, borderWidth: active ? 2.5 : 1, bg: active ? v.tint : '#fff', stripeW: active ? 10 : 5, scaleExpected: active ? 1.04 : '<1' });
   }, [active, index, s.name, v.tint]);
 
   return (
