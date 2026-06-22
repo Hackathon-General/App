@@ -33,6 +33,7 @@ export default function AdminLayout() {
       <Tabs.Screen name="nfr" options={{ title: 'משימות', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="map-marker-plus" color={color} size={size} /> }} />
       <Tabs.Screen name="alerts" options={{ title: 'התראות', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="bullhorn" color={color} size={size} /> }} />
       <Tabs.Screen name="content" options={{ title: 'תוכן', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="file-document-edit" color={color} size={size} /> }} />
+      <Tabs.Screen name="event" options={{ title: 'המרוץ', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="run" color={color} size={size} /> }} />
       <Tabs.Screen name="leaderboard" options={{ title: 'מובילים', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="trophy" color={color} size={size} /> }} />
       <Tabs.Screen name="tests" options={{ title: 'בדיקות', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="test-tube" color={color} size={size} /> }} />
     </Tabs>
