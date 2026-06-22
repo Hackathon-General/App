@@ -9,8 +9,8 @@ import type { Station } from '@/content/ContentProvider';
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W * 0.72;
 const GAP = spacing.sm;
-const SNAP = CARD_W + GAP;
-const SIDE = (SCREEN_W - CARD_W) / 2;
+const SNAP = CARD_W + GAP;            // each card slot = card + its left/right half-gaps
+const SIDE = (SCREEN_W - CARD_W) / 2 - GAP / 2; // pad so card 0 is screen-centered at offset 0
 
 type S = Station & { _distM?: number };
 
@@ -53,20 +53,18 @@ export const StationCarousel = forwardRef<CarouselHandle, {
     }
   };
 
-  const logScroll = (offset: number, idx: number) => {
-    console.log('[Carousel] scroll', { offsetX: Math.round(offset), SNAP: Math.round(SNAP), centeredIndex: idx, activeIndex });
+  const settle = (offset: number) => {
+    const idx = Math.round(offset / SNAP);
+    console.log('[Carousel] settle', { offsetX: Math.round(offset), SNAP: Math.round(SNAP), idx, activeIndex });
+    notify(idx);
   };
 
   const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (e) => {
-      x.value = e.contentOffset.x;
-      const idx = Math.round(e.contentOffset.x / SNAP);
-      // live highlight + map sync mid-drag (not only on momentum end)
-      runOnJS(notify)(idx);
-    },
-    onMomentumEnd: (e) => {
-      runOnJS(logScroll)(e.contentOffset.x, Math.round(e.contentOffset.x / SNAP));
-    },
+    // Only update the shared value for the scale animation while dragging — do NOT thrash
+    // activeIndex mid-scroll (that caused flicker / wrong "active"). Commit on settle.
+    onScroll: (e) => { x.value = e.contentOffset.x; },
+    onMomentumEnd: (e) => { runOnJS(settle)(e.contentOffset.x); },
+    onEndDrag: (e) => { runOnJS(settle)(e.contentOffset.x); }, // catch slow drags w/ no momentum
   });
 
   console.log('[Carousel] render', { count: stations.length, activeIndex, CARD_W: Math.round(CARD_W), SNAP: Math.round(SNAP) });
@@ -80,7 +78,7 @@ export const StationCarousel = forwardRef<CarouselHandle, {
       decelerationRate="fast"
       onScroll={scrollHandler}
       scrollEventThrottle={16}
-      contentContainerStyle={{ paddingHorizontal: SIDE, gap: GAP }}
+      contentContainerStyle={{ paddingHorizontal: SIDE }}
     >
       {stations.map((s, i) => (
         <Card key={s.id} s={s} index={i} x={x} active={i === activeIndex} onPress={() => onPressCard(s)} onWaze={() => onWaze(s)} />
@@ -95,8 +93,9 @@ function Card({ s, index, x, active, onPress, onWaze }: { s: S; index: number; x
   // border/tint/scale on the active card; opacity-dimming read as "faded/stuck", so it's gone.
   const animStyle = useAnimatedStyle(() => {
     const d = x.value - index * SNAP;
-    const scale = interpolate(d, [-SNAP, 0, SNAP], [0.86, 1.04, 0.86], Extrapolation.CLAMP);
-    const translateY = interpolate(d, [-SNAP, 0, SNAP], [14, 0, 14], Extrapolation.CLAMP);
+    // Big contrast: centered card pops to 1.12, neighbors shrink to 0.8 and drop down.
+    const scale = interpolate(d, [-SNAP, 0, SNAP], [0.8, 1.12, 0.8], Extrapolation.CLAMP);
+    const translateY = interpolate(d, [-SNAP, 0, SNAP], [22, 0, 22], Extrapolation.CLAMP);
     return { transform: [{ scale }, { translateY }] };
   });
 
@@ -118,13 +117,13 @@ function Card({ s, index, x, active, onPress, onWaze }: { s: S; index: number; x
   }, [active, index, s.name, v.tint]);
 
   return (
-    <Animated.View style={[{ width: CARD_W }, animStyle]}>
+    <Animated.View style={[{ width: CARD_W, marginHorizontal: GAP / 2 }, animStyle]}>
       <View style={[
         styles.card,
-        { opacity: active ? 1 : 0.82 },
+        { opacity: active ? 1 : 0.6 },
         active
-          ? { borderColor: v.color, borderWidth: 2.5, backgroundColor: v.tint, shadowColor: v.color, shadowOpacity: 0.4, shadowRadius: 14, elevation: 12 }
-          : { borderColor: colors.line, borderWidth: 1, backgroundColor: '#fff', shadowOpacity: 0.08, shadowRadius: 5, elevation: 3 },
+          ? { borderColor: v.color, borderWidth: 3, backgroundColor: v.tint, shadowColor: v.color, shadowOpacity: 0.5, shadowRadius: 18, elevation: 14 }
+          : { borderColor: colors.line, borderWidth: 1, backgroundColor: '#fff', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
       ]}>
         <Pressable style={styles.press} onPress={onPress}>
         <View style={[styles.stripe, { backgroundColor: v.color, width: active ? 10 : 5 }]} />
