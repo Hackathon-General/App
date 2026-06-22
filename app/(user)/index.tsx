@@ -35,9 +35,6 @@ const visibleStationsList = (all: Station[], filter: ValueKey | 'all') =>
 
 interface RelayLeg { n: number; from: string; to: string; km: number; fromLat: number; fromLng: number; toLat: number; toLng: number }
 
-// Center of the trail (mid Carmel→Kinneret) for the "off-trail" detection.
-const TRAIL_CENTER = { lat: 32.72, lng: 35.27 };
-
 const INITIAL_REGION: Region = {
   latitude: 32.72,
   longitude: 35.27,
@@ -122,6 +119,16 @@ export default function MapScreen() {
     );
   };
 
+  // Zoom in/out around the current camera (uses zoom delta on the camera).
+  const zoom = async (dir: 1 | -1) => {
+    Haptics.selectionAsync().catch(() => {});
+    const cam = await mapRef.current?.getCamera();
+    if (!cam) return;
+    if (cam.zoom != null) {
+      mapRef.current?.animateCamera({ zoom: Math.max(3, Math.min(20, cam.zoom + dir)) }, { duration: 250 });
+    }
+  };
+
   // "Recenter on the trail" — fit the whole Carmel→Kinneret route in view.
   const [offTrail, setOffTrail] = useState(false);
   const fitToTrail = () => {
@@ -133,14 +140,23 @@ export default function MapScreen() {
     setOffTrail(false);
   };
 
-  // Show the recenter button when the map center drifts away from the trail's center.
+  // Trail bounding box (from the waypoints) — for accurate "is the trail in view?" checks.
+  const trailBounds = useMemo(() => {
+    const ws = routes.waypoints;
+    if (!ws?.length) return null;
+    const lats = ws.map((w) => w.lat), lngs = ws.map((w) => w.lng);
+    return { minLat: Math.min(...lats), maxLat: Math.max(...lats), minLng: Math.min(...lngs), maxLng: Math.max(...lngs) };
+  }, [routes.waypoints]);
+
+  // Show "חזרה לשביל" only when the trail's bbox does NOT overlap the visible region.
   const onRegionChange = (r: Region) => {
-    const d = distanceMeters(
-      { lat: r.latitude, lng: r.longitude },
-      { lat: TRAIL_CENTER.lat, lng: TRAIL_CENTER.lng }
-    );
-    // Off-trail if panned >20km from center OR zoomed way out/in beyond the trail span.
-    setOffTrail(d > 20000 || r.latitudeDelta > 1.0 || r.latitudeDelta < 0.01);
+    if (!trailBounds) return;
+    const viewMinLat = r.latitude - r.latitudeDelta / 2, viewMaxLat = r.latitude + r.latitudeDelta / 2;
+    const viewMinLng = r.longitude - r.longitudeDelta / 2, viewMaxLng = r.longitude + r.longitudeDelta / 2;
+    const overlaps =
+      trailBounds.minLat <= viewMaxLat && trailBounds.maxLat >= viewMinLat &&
+      trailBounds.minLng <= viewMaxLng && trailBounds.maxLng >= viewMinLng;
+    setOffTrail(!overlaps);
   };
 
   const visibleStations = useMemo(
@@ -319,8 +335,14 @@ export default function MapScreen() {
           </Animated.View>
         )}
 
-        {/* Floating controls: center-on-me + toggle proximity list */}
+        {/* Floating controls: zoom +/- · center-on-me · toggle proximity list */}
         <View style={styles.fabCol} pointerEvents="box-none">
+          <TouchableOpacity style={styles.fab} onPress={() => zoom(1)}>
+            <MaterialCommunityIcons name="plus" size={24} color={colors.forest} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.fab} onPress={() => zoom(-1)}>
+            <MaterialCommunityIcons name="minus" size={24} color={colors.forest} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.fab} onPress={centerOnMe}>
             <MaterialCommunityIcons name="crosshairs-gps" size={22} color={colors.forest} />
           </TouchableOpacity>
@@ -345,6 +367,7 @@ export default function MapScreen() {
               activeIndex={activeIdx}
               onActiveChange={onCarouselActive}
               onPressCard={(s) => { focusStation(s); setSelected(stations.find((x) => x.id === s.id) ?? null); }}
+              onWaze={(s) => openWaze(s.lat, s.lng)}
             />
           </View>
         )}

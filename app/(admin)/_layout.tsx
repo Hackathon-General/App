@@ -1,6 +1,7 @@
 import React from 'react';
 import { Tabs, Redirect } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/theme';
 import { TabIcon } from '@/components/TabIcon';
 import { useAuth } from '@/auth/AuthProvider';
@@ -8,6 +9,7 @@ import { useAuth } from '@/auth/AuthProvider';
 /** Admin God-Mode — gated on the custom claim. Non-admins are redirected. */
 export default function AdminLayout() {
   const { role, initializing } = useAuth();
+  const insets = useSafeAreaInsets();
 
   if (initializing) {
     return (
@@ -26,7 +28,7 @@ export default function AdminLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.terracotta,
         tabBarInactiveTintColor: colors.muted,
-        tabBarStyle: { backgroundColor: colors.deepGreen, borderTopColor: '#000', height: 64, paddingTop: 6, paddingBottom: 10 },
+        tabBarStyle: { backgroundColor: colors.deepGreen, borderTopColor: '#000', height: 60 + insets.bottom, paddingTop: 6, paddingBottom: Math.max(insets.bottom, 8) },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
       }}
     >

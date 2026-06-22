@@ -26,15 +26,15 @@ export const colors = {
 /** Value category → marker/chip color + icon (ערכי השביל). */
 export const valueTheme: Record<
   string,
-  { label: string; color: string; icon: string }
+  { label: string; color: string; icon: string; tint: string }
 > = {
-  // Palette aligned to carmel-kinneret.org race pages.
-  loveOfLand:    { label: 'אהבת הארץ',  color: '#2C6E49', icon: 'leaf' },
-  justice:       { label: 'צדק',         color: '#FFCF56', icon: 'scale-balance' },
-  volunteering:  { label: 'התנדבות',     color: '#D68C45', icon: 'hand-heart' },
-  helpingOthers: { label: 'עזרה לזולת',  color: '#FF8044', icon: 'heart' },
-  seeingOther:   { label: 'ראיית האחר',  color: '#A6E1F1', icon: 'eye' },
-  coexistence:   { label: 'קיום משותף',  color: '#60D394', icon: 'account-group' },
+  // Palette aligned to carmel-kinneret.org race pages. `tint` = light wash for selected states.
+  loveOfLand:    { label: 'אהבת הארץ',  color: '#2C6E49', icon: 'leaf',          tint: '#EAF3EE' },
+  justice:       { label: 'צדק',         color: '#FFCF56', icon: 'scale-balance', tint: '#FFF8E4' },
+  volunteering:  { label: 'התנדבות',     color: '#D68C45', icon: 'hand-heart',    tint: '#FBF1E8' },
+  helpingOthers: { label: 'עזרה לזולת',  color: '#FF8044', icon: 'heart',         tint: '#FFEFE7' },
+  seeingOther:   { label: 'ראיית האחר',  color: '#A6E1F1', icon: 'eye',           tint: '#EDF8FC' },
+  coexistence:   { label: 'קיום משותף',  color: '#60D394', icon: 'account-group', tint: '#EAF9F1' },
 };
 
 export type ValueKey = keyof typeof valueTheme;

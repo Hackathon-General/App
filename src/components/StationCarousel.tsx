@@ -27,7 +27,8 @@ export const StationCarousel = forwardRef<CarouselHandle, {
   activeIndex: number;
   onActiveChange: (i: number) => void;
   onPressCard: (s: S) => void;
-}>(function StationCarousel({ stations, activeIndex, onActiveChange, onPressCard }, ref) {
+  onWaze: (s: S) => void;
+}>(function StationCarousel({ stations, activeIndex, onActiveChange, onPressCard, onWaze }, ref) {
   const x = useSharedValue(0);
   const scrollRef = useRef<Animated.ScrollView>(null);
   const lastIndex = useRef(activeIndex);
@@ -67,13 +68,13 @@ export const StationCarousel = forwardRef<CarouselHandle, {
       contentContainerStyle={{ paddingHorizontal: SIDE, gap: GAP }}
     >
       {stations.map((s, i) => (
-        <Card key={s.id} s={s} index={i} x={x} active={i === activeIndex} onPress={() => onPressCard(s)} />
+        <Card key={s.id} s={s} index={i} x={x} active={i === activeIndex} onPress={() => onPressCard(s)} onWaze={() => onWaze(s)} />
       ))}
     </Animated.ScrollView>
   );
 });
 
-function Card({ s, index, x, active, onPress }: { s: S; index: number; x: SharedValue<number>; active: boolean; onPress: () => void }) {
+function Card({ s, index, x, active, onPress, onWaze }: { s: S; index: number; x: SharedValue<number>; active: boolean; onPress: () => void; onWaze: () => void }) {
   const v = valueTheme[s.value];
   // Outer transform/opacity. A flat plateau around center keeps the selected card FULLY opaque
   // and biggest even when the resting offset is a few px off exact-center; neighbors shrink + dim.
@@ -84,25 +85,25 @@ function Card({ s, index, x, active, onPress }: { s: S; index: number; x: Shared
     const translateY = interpolate(d, [-SNAP, 0, SNAP], [18, 0, 18], Extrapolation.CLAMP);
     return { transform: [{ scale }, { translateY }], opacity };
   });
-  // Inner card: colored border + glow animate with scroll position so the CENTERED card is
-  // always the highlighted one (no lag from controlled state).
-  const cardStyle = useAnimatedStyle(() => {
-    const center = interpolate(x.value - index * SNAP, [-SNAP * 0.5, 0, SNAP * 0.5], [0, 1, 0], Extrapolation.CLAMP);
-    return { borderWidth: 1 + center * 2, shadowOpacity: 0.1 + center * 0.3, shadowRadius: 6 + center * 12 };
-  });
-
+  // Strong, unmistakable highlight driven by the controlled `active` state: the selected card
+  // gets a thick colored border, a value-tinted background and a wide stripe; others are plain.
   return (
     <Animated.View style={[{ width: CARD_W }, animStyle]}>
-      <Animated.View style={[styles.card, { borderColor: v.color, shadowColor: v.color }, cardStyle]}>
+      <View style={[
+        styles.card,
+        active
+          ? { borderColor: v.color, borderWidth: 2.5, backgroundColor: v.tint ?? '#fff', shadowColor: v.color, shadowOpacity: 0.4, shadowRadius: 16, elevation: 12 }
+          : { borderColor: colors.line, borderWidth: 1, shadowOpacity: 0.08, shadowRadius: 5, elevation: 3 },
+      ]}>
         <Pressable style={styles.press} onPress={onPress}>
-        <View style={[styles.stripe, { backgroundColor: v.color }]} />
+        <View style={[styles.stripe, { backgroundColor: v.color, width: active ? 10 : 5 }]} />
         <View style={styles.inner}>
           <View style={styles.top}>
-            <View style={[styles.icon, { backgroundColor: v.color }]}>
-              <MaterialCommunityIcons name={v.icon as never} size={18} color="#fff" />
+            <View style={[styles.icon, { backgroundColor: v.color }, active && styles.iconActive]}>
+              <MaterialCommunityIcons name={v.icon as never} size={active ? 20 : 18} color="#fff" />
             </View>
-            <Text style={styles.name} numberOfLines={1}>{s.number}. {s.name}</Text>
-            {active && <View style={[styles.activeDot, { backgroundColor: v.color }]} />}
+            <Text style={[styles.name, active && { color: v.color }]} numberOfLines={1}>{s.number}. {s.name}</Text>
+            {active && <View style={[styles.activeBadge, { backgroundColor: v.color }]}><MaterialCommunityIcons name="check" size={12} color="#fff" /></View>}
           </View>
           {s._distM != null && (
             <View style={styles.distRow}>
@@ -110,10 +111,16 @@ function Card({ s, index, x, active, onPress }: { s: S; index: number; x: Shared
               <Text style={styles.dist}>{(s._distM / 1000).toFixed(1)} ק"מ ממך</Text>
             </View>
           )}
-          <Text style={styles.value} numberOfLines={1}>{v.label}</Text>
+          <View style={styles.bottomRow}>
+            <Text style={styles.value} numberOfLines={1}>{v.label}</Text>
+            <Pressable style={[styles.wazeBtn, { backgroundColor: v.color }]} onPress={onWaze} hitSlop={6}>
+              <MaterialCommunityIcons name="navigation-variant" size={13} color="#fff" />
+              <Text style={styles.wazeTxt}>ניווט</Text>
+            </Pressable>
+          </View>
         </View>
         </Pressable>
-      </Animated.View>
+      </View>
     </Animated.View>
   );
 }
@@ -125,9 +132,13 @@ const styles = StyleSheet.create({
   inner: { flex: 1, padding: spacing.md },
   top: { flexDirection: 'row', alignItems: 'center', gap: 8, direction: 'rtl' },
   icon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  iconActive: { width: 38, height: 38, borderRadius: 19 },
   name: { flex: 1, fontWeight: '800', color: colors.ink, fontSize: 15, textAlign: 'right', writingDirection: 'rtl' },
-  activeDot: { width: 9, height: 9, borderRadius: 5 },
+  activeBadge: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   distRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, direction: 'rtl' },
   dist: { color: colors.terracotta, fontWeight: '800', fontSize: 13 },
-  value: { color: colors.muted, fontSize: 12, textAlign: 'right', marginTop: 2, writingDirection: 'rtl' },
+  bottomRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
+  value: { color: colors.muted, fontSize: 12, textAlign: 'right', writingDirection: 'rtl', flex: 1 },
+  wazeBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
+  wazeTxt: { color: '#fff', fontWeight: '800', fontSize: 12 },
 });

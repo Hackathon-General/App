@@ -1,7 +1,7 @@
 import { httpsCallable } from '@react-native-firebase/functions';
-import { doc, getDoc, collection, getDocs, query, where, deleteDoc, setDoc } from '@react-native-firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where, deleteDoc, setDoc, addDoc } from '@react-native-firebase/firestore';
 import { ref, get } from '@react-native-firebase/database';
-import { functions, db, rtdb } from '@/firebase';
+import { functions, db, rtdb, auth } from '@/firebase';
 
 export interface StepResult { name: string; ok: boolean; detail?: string }
 export type OnStep = (r: StepResult) => void;
@@ -15,8 +15,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const TEST_ID = 'e2e-inapp-station';
 
 /**
- * In-app admin E2E — runs each admin capability through the REAL callables (with the admin's
- * auth token) and verifies the writes landed. Admin-only; safe + self-cleaning.
+ * In-app admin E2E — exercises every admin capability through the REAL callables/Firestore
+ * (with the admin's auth token) and verifies the writes landed. Admin-only; safe + self-cleaning.
  */
 export async function runAdminE2E(onStep: OnStep): Promise<{ passed: number; failed: number }> {
   let passed = 0, failed = 0;
@@ -49,7 +49,26 @@ export async function runAdminE2E(onStep: OnStep): Promise<{ passed: number; fai
     return `${snap.size} תחנות`;
   });
 
-  // 2. upsertStation → verify it lands
+  // 2. content/event has the full race data (categories, water stations)
+  await step('מרוץ: content/event מכיל קטגוריות + תחנות מים', async () => {
+    const d = await getDoc(doc(db, 'content/event'));
+    const data: any = d.data();
+    const cats = data?.categories ?? [];
+    if (cats.length < 3) throw new Error(`only ${cats.length} categories`);
+    const water = cats.find((c: any) => (c.waterStations?.length ?? 0) > 0);
+    if (!water) throw new Error('no water stations');
+    return `${cats.length} קטגוריות, תחנות מים קיימות`;
+  });
+
+  // 3. content/info seeded (about / regulations)
+  await step('מידע: content/info נטען (מי אנחנו + תקנון)', async () => {
+    const d = await getDoc(doc(db, 'content/info'));
+    const data: any = d.data();
+    if (!data?.about || !(data?.regulations?.length)) throw new Error('info missing');
+    return 'מי אנחנו + תקנון קיימים';
+  });
+
+  // 4. upsertStation → verify it lands
   await step('תוכן: הוספת תחנת בדיקה (upsertStation)', async () => {
     await upsertStation({ station: { id: TEST_ID, number: 99, name: 'תחנת בדיקה', value: 'volunteering', region: 'east', lat: 32.73, lng: 35.2 } });
     await sleep(700);
@@ -58,48 +77,88 @@ export async function runAdminE2E(onStep: OnStep): Promise<{ passed: number; fai
     return 'נכתבה ומופיעה במפה';
   });
 
-  // 3. updateContent (singleton patch)
-  await step('תוכן: עדכון content/event (updateContent)', async () => {
+  // 5. updateContent (singleton patch) — event + info
+  await step('תוכן: עדכון content/event + content/info (updateContent)', async () => {
     await updateContent({ doc: 'event', patch: { _e2e: Date.now() } });
+    await updateContent({ doc: 'info', patch: { _e2e: Date.now() } });
     return 'עודכן';
   });
 
-  // 4. NFR create (direct Firestore, as the NFR screen does)
-  await step('משימות: יצירת משימה (NFR)', async () => {
+  // 6. NFR create + listener reads it back active
+  await step('משימות: יצירת NFR ומופיעה כפעילה', async () => {
     const refDoc = doc(collection(db, 'nfrs'));
     await setDoc(refDoc, { lat: 32.74, lng: 35.1, radius: 150, title: 'משימת בדיקה', task: 'בדיקה', active: true, createdAt: Date.now() });
-    return 'נוצרה';
+    await sleep(500);
+    const s = await getDocs(query(collection(db, 'nfrs'), where('active', '==', true)));
+    if (s.empty) throw new Error('no active nfr read back');
+    return `${s.size} משימות פעילות`;
   });
 
-  // 5. Alert create → onAlertCreated fan-out
+  // 7. Alert create → onAlertCreated fan-out
   await step('התראות: שיגור התראה (alert + fan-out)', async () => {
     const refDoc = doc(collection(db, 'alerts'));
-    await setDoc(refDoc, { lat: 32.75, lng: 35.07, radius: 1000, title: 'התראת בדיקה', message: 'בדיקה', createdAt: Date.now() });
+    await setDoc(refDoc, { lat: 32.75, lng: 35.07, radius: 1000, kind: 'info', title: 'התראת בדיקה', message: 'בדיקה', createdAt: Date.now() });
     return 'נשלחה (onAlertCreated מופעל)';
   });
 
-  // 6. God-Mode live read
-  await step('מפה חיה: קריאת live מ-RTDB', async () => {
+  // 8. take-home rule write (admin CRUD)
+  await step('המשך: כתיבת משימת המשך (takeHomeRules)', async () => {
+    await setDoc(doc(db, 'takeHomeRules', 'e2e-th'), { title: 'בדיקת המשך', description: '', link: '', value: 'volunteering', updatedAt: Date.now() });
+    const d = await getDoc(doc(db, 'takeHomeRules', 'e2e-th'));
+    if (!d.exists()) throw new Error('not written');
+    return 'נכתבה';
+  });
+
+  // 9. SOS event create → onSosCreated notifies admins; admin can read it
+  await step('מצוקה: יצירת SOS וקריאתו (sosEvents)', async () => {
+    const uid = auth.currentUser?.uid ?? 'e2e';
+    await addDoc(collection(db, 'sosEvents'), { authorId: uid, authorName: 'בדיקה', lat: 32.7, lng: 35.2, status: 'open', createdAt: Date.now() });
+    await sleep(400);
+    const s = await getDocs(query(collection(db, 'sosEvents'), where('authorName', '==', 'בדיקה')));
+    if (s.empty) throw new Error('sos not read back');
+    return 'נוצר ונקרא (push לאדמינים)';
+  });
+
+  // 10. Form submission → admin inbox reads it
+  await step('פניות: שליחת טופס וקריאתו (forms inbox)', async () => {
+    await addDoc(collection(db, 'forms'), { type: 'contact', status: 'new', data: { name: 'בדיקה' }, createdAt: Date.now() });
+    await sleep(400);
+    const s = await getDocs(query(collection(db, 'forms'), where('status', '==', 'new')));
+    if (s.empty) throw new Error('form not read back');
+    return 'נשלח ומופיע בתיבת הפניות';
+  });
+
+  // 11. Feed read (community gallery)
+  await step('קהילה: קריאת feed', async () => {
+    await getDocs(collection(db, 'feed'));
+    return 'נגיש';
+  });
+
+  // 12. God-Mode live read (phones + IoT sensors)
+  await step('מפה חיה: קריאת live מ-RTDB (מובייל+IoT)', async () => {
     await get(ref(rtdb, 'live'));
     return 'נגיש';
   });
 
-  // 7. Torch + community km read
-  await step('לפיד/מובילים: קריאת torch + km', async () => {
+  // 13. Torch + community km read (leaderboard)
+  await step('לפיד/מובילים: קריאת torch + km קהילתי', async () => {
     await get(ref(rtdb, 'torch/active'));
     await get(ref(rtdb, 'community/totalKm'));
     return 'נגיש';
   });
 
-  // cleanup test station + test docs
+  // cleanup all test docs
   await step('ניקוי נתוני בדיקה', async () => {
     await deleteStation({ id: TEST_ID }).catch(() => {});
-    for (const t of ['משימת בדיקה']) {
-      const s = await getDocs(query(collection(db, 'nfrs'), where('title', '==', t)));
-      for (const d of s.docs) await deleteDoc(d.ref);
-    }
-    const a = await getDocs(query(collection(db, 'alerts'), where('title', '==', 'התראת בדיקה')));
-    for (const d of a.docs) await deleteDoc(d.ref);
+    await deleteDoc(doc(db, 'takeHomeRules', 'e2e-th')).catch(() => {});
+    const drop = async (coll: string, field: string, val: string) => {
+      const s = await getDocs(query(collection(db, coll), where(field, '==', val)));
+      for (const d of s.docs) await deleteDoc(d.ref).catch(() => {});
+    };
+    await drop('nfrs', 'title', 'משימת בדיקה');
+    await drop('alerts', 'title', 'התראת בדיקה');
+    await drop('sosEvents', 'authorName', 'בדיקה');
+    await drop('forms', 'type', 'contact');
     return 'נוקה';
   });
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/theme';
 import { TabIcon } from '@/components/TabIcon';
 import { useTrailServices } from '@/location/useTrailServices';
@@ -8,6 +9,7 @@ import { NfrMissionModal } from '@/components/NfrMissionModal';
 
 export default function UserLayout() {
   useTrailServices();
+  const insets = useSafeAreaInsets();
   const { active, dismiss } = useGeofenceMission();
   return (
     <>
@@ -16,7 +18,7 @@ export default function UserLayout() {
           headerShown: false,
           tabBarActiveTintColor: colors.forest,
           tabBarInactiveTintColor: colors.muted,
-          tabBarStyle: { backgroundColor: '#fff', borderTopColor: colors.line, height: 64, paddingTop: 6, paddingBottom: 10 } as any,
+          tabBarStyle: { backgroundColor: '#fff', borderTopColor: colors.line, height: 60 + insets.bottom, paddingTop: 6, paddingBottom: Math.max(insets.bottom, 8) } as any,
           tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
         }}
       >
