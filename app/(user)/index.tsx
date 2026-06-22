@@ -311,8 +311,8 @@ export default function MapScreen() {
         )}
       </View>
 
-      {/* SOS — only on the map page; hidden while the proximity list is open */}
-      {!showList && <SosButton />}
+      {/* SOS — only on the map page; hidden while the list OR a station sheet is open */}
+      {!showList && !selected && <SosButton />}
 
       {/* Station detail sheet — animated, drag-to-dismiss */}
       <BottomSheet visible={!!selected} onClose={() => setSelected(null)}>
@@ -429,11 +429,11 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6, direction: 'rtl',
   },
   placeStripe: { width: 6 },
-  placeInner: { flex: 1, padding: spacing.md },
-  placeTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  placeInner: { flex: 1, padding: spacing.md, direction: 'rtl' },
+  placeTop: { flexDirection: 'row', alignItems: 'center', gap: 8, direction: 'rtl' },
   placeIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   placeName: { flex: 1, fontWeight: '800', color: colors.ink, textAlign: 'right', writingDirection: 'rtl', fontSize: 14 },
-  placeDistRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
+  placeDistRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, direction: 'rtl' },
   placeDist: { color: colors.terracotta, fontWeight: '800', fontSize: 13 },
   placeValue: { color: colors.muted, fontSize: 12, textAlign: 'right', marginTop: 2 },
 });
