@@ -67,9 +67,10 @@ TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error }: any) => {
   if (eventType !== Location.GeofencingEventType.Enter) return;
   const station = stations.find((s) => s.id === region.identifier);
   if (!station) return;
+  const who = (auth.currentUser?.displayName ?? '').trim().split(/\s+/)[0] || 'מטייל/ת';
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: `הגעת ל${station.name} 🏞️`,
+      title: `${who}, הגעת ל${station.name}`,
       body: station.whatYouDo,
       data: { url: `carmelkinneret://station/${station.id}` },
     },
