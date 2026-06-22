@@ -1,42 +1,61 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput, ScrollView, Switch } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
+import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFeed, uploadFeedImage, createPost, type FeedPost } from '@/features/feed/feed';
+import { capturePhoto, pickPhoto, prepareForUpload } from '@/features/feed/media';
 import { useAuth } from '@/auth/AuthProvider';
 import { colors, spacing, radius } from '@/theme';
 import { content } from '@/content';
 
+/** קהילה — turn the phone from a disconnector into a connector: capture/pick a moment,
+ *  add a caption, optionally pin it on the live map, and share it with everyone instantly. */
 export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const { posts, loading } = useFeed();
   const { user } = useAuth();
+  const [draftUri, setDraftUri] = useState<string | null>(null);
+  const [caption, setCaption] = useState('');
+  const [showOnMap, setShowOnMap] = useState(true);
   const [uploading, setUploading] = useState(false);
 
-  const share = async () => {
-    const res = await ImagePicker.launchCameraAsync({ quality: 0.7 });
-    if (res.canceled || !res.assets?.[0]) return;
-    if (!user) return;
+  const startWith = async (getUri: () => Promise<string | null>) => {
+    const uri = await getUri();
+    if (!uri) return; // permission denied / cancelled (handled in media helpers)
+    Haptics.selectionAsync().catch(() => {});
+    setDraftUri(uri); setCaption(''); setShowOnMap(true);
+  };
+
+  const cancel = () => { setDraftUri(null); setCaption(''); };
+
+  const publish = async () => {
+    if (!draftUri || !user) return;
     setUploading(true);
     try {
-      const manip = await ImageManipulator.manipulateAsync(res.assets[0].uri, [{ resize: { width: 1080 } }], {
-        compress: 0.7,
-        format: ImageManipulator.SaveFormat.JPEG,
+      let lat: number | undefined, lng: number | undefined;
+      if (showOnMap) {
+        const perm = await Location.getForegroundPermissionsAsync();
+        if (perm.granted) {
+          const loc = await Location.getLastKnownPositionAsync() ?? await Location.getCurrentPositionAsync({});
+          if (loc) { lat = loc.coords.latitude; lng = loc.coords.longitude; }
+        }
+      }
+      const prepared = await prepareForUpload(draftUri);
+      const url = await uploadFeedImage(user.uid, prepared);
+      await createPost({
+        authorId: user.uid, authorName: user.displayName ?? 'מטייל/ת', authorPhoto: user.photoURL ?? undefined,
+        imageUrl: url, text: caption.trim(), showOnMap, lat, lng,
       });
-      const url = await uploadFeedImage(user.uid, manip.uri);
-      await createPost({ authorId: user.uid, authorName: user.displayName ?? 'מטייל/ת', authorPhoto: user.photoURL ?? undefined, imageUrl: url, text: '' });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      cancel();
     } catch (e: any) {
       Alert.alert('שגיאה בהעלאה', e?.message ?? '');
-    } finally {
-      setUploading(false);
-    }
+    } finally { setUploading(false); }
   };
 
   return (
@@ -59,16 +78,50 @@ export default function FeedScreen() {
           contentContainerStyle={{ padding: spacing.md }}
         />
       )}
-      <TouchableOpacity style={styles.fab} onPress={share} disabled={uploading}>
-        {uploading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <>
-            <MaterialCommunityIcons name="camera-plus" size={18} color="#fff" />
-            <Text style={styles.fabTxt}>שתף רגע</Text>
-          </>
-        )}
-      </TouchableOpacity>
+
+      {/* Two-way share FAB: camera (primary) + gallery */}
+      <View style={styles.fabCol}>
+        <TouchableOpacity style={styles.fabSmall} onPress={() => startWith(pickPhoto)}>
+          <MaterialCommunityIcons name="image" size={20} color={colors.forest} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.fab} onPress={() => startWith(capturePhoto)}>
+          <MaterialCommunityIcons name="camera-plus" size={18} color="#fff" />
+          <Text style={styles.fabTxt}>שתף רגע</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Compose modal — preview + caption + show-on-map opt-in */}
+      <Modal visible={!!draftUri} animationType="slide" transparent onRequestClose={cancel}>
+        <View style={styles.modalBg}>
+          <View style={styles.sheet}>
+            <View style={styles.sheetHead}>
+              <TouchableOpacity onPress={cancel} hitSlop={8}><MaterialCommunityIcons name="close" size={24} color={colors.muted} /></TouchableOpacity>
+              <Text style={styles.sheetTitle}>שיתוף עם הקהילה</Text>
+              <View style={{ width: 24 }} />
+            </View>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: spacing.lg }}>
+              {!!draftUri && <Image source={{ uri: draftUri }} style={styles.preview} contentFit="cover" />}
+              <TextInput
+                style={styles.caption}
+                placeholder="מה חוויתם כאן? (לדוגמה: מתי לאחרונה עזרנו אחד לשני?)"
+                placeholderTextColor={colors.muted}
+                value={caption} onChangeText={setCaption} multiline textAlign="right"
+              />
+              <View style={styles.optRow}>
+                <Switch value={showOnMap} onValueChange={(v) => { Haptics.selectionAsync().catch(() => {}); setShowOnMap(v); }} trackColor={{ true: colors.forest }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.optTitle}>הצגה על המפה החיה</Text>
+                  <Text style={styles.optSub}>הרגע שלכם יופיע על המפה לכל המטיילים (אופציונלי)</Text>
+                </View>
+                <MaterialCommunityIcons name="map-marker-radius" size={20} color={colors.forest} />
+              </View>
+              <TouchableOpacity style={[styles.publish, uploading && { opacity: 0.6 }]} onPress={publish} disabled={uploading}>
+                {uploading ? <ActivityIndicator color="#fff" /> : <><MaterialCommunityIcons name="send" size={18} color="#fff" /><Text style={styles.publishTxt}>שתף עם הקהילה</Text></>}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -85,6 +138,7 @@ function PostCard({ post, index = 0 }: { post: FeedPost; index?: number }) {
           </View>
         )}
         <Text style={styles.author}>{post.authorName ?? 'מטייל/ת'}</Text>
+        {post.showOnMap && <MaterialCommunityIcons name="map-marker" size={16} color={colors.terracotta} />}
       </View>
       {!!post.imageUrl && <Image source={{ uri: post.imageUrl }} style={styles.cardImg} contentFit="cover" />}
       {!!post.text && <Text style={styles.text}>{post.text}</Text>}
@@ -107,10 +161,24 @@ const styles = StyleSheet.create({
   authorAvatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.forest },
   authorAvatarTxt: { color: '#fff', fontWeight: '800' },
   cardImg: { width: '100%', aspectRatio: 1.2 },
-  author: { fontWeight: '700', color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
+  author: { fontWeight: '700', color: colors.ink, textAlign: 'right', writingDirection: 'rtl', flex: 1 },
   text: { color: colors.ink, padding: spacing.md, textAlign: 'right', writingDirection: 'rtl' },
   cardFooter: { flexDirection: 'row', gap: spacing.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   footAction: { padding: 2 },
-  fab: { flexDirection: 'row', alignItems: 'center', gap: 8, position: 'absolute', bottom: 100, right: 20, backgroundColor: colors.terracotta, paddingHorizontal: 22, paddingVertical: 14, borderRadius: radius.pill, elevation: 5, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 5 },
+  fabCol: { position: 'absolute', bottom: 100, right: 20, flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
+  fab: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.terracotta, paddingHorizontal: 22, paddingVertical: 14, borderRadius: radius.pill, elevation: 5, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 5 },
   fabTxt: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  fabSmall: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4 },
+  // compose modal
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.md, maxHeight: '90%', direction: 'rtl' },
+  sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
+  sheetTitle: { fontSize: 17, fontWeight: '800', color: colors.ink, writingDirection: 'rtl' },
+  preview: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.md, backgroundColor: colors.line },
+  caption: { backgroundColor: '#fff', borderRadius: radius.md, padding: 14, marginTop: spacing.md, minHeight: 70, borderWidth: 1, borderColor: colors.line, writingDirection: 'rtl', textAlign: 'right' },
+  optRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm, backgroundColor: '#fff', borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md },
+  optTitle: { fontWeight: '800', color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
+  optSub: { fontSize: 12, color: colors.muted, textAlign: 'right', writingDirection: 'rtl', marginTop: 1 },
+  publish: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, backgroundColor: colors.forest, paddingVertical: 15, borderRadius: radius.pill, marginTop: spacing.lg },
+  publishTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
 });

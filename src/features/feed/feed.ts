@@ -12,6 +12,9 @@ export interface FeedPost {
   value?: string;
   text?: string;
   imageUrl?: string;
+  showOnMap?: boolean;   // user opted in to show this moment on the live map
+  lat?: number;
+  lng?: number;
   createdAt?: number;
 }
 
