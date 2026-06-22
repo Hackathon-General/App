@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
   },
   recenterTxt: { color: '#fff', fontWeight: '800', fontSize: 14, writingDirection: 'rtl' },
   // Floating controls
-  fabCol: { position: 'absolute', bottom: 110, right: spacing.md, gap: spacing.sm },
+  fabCol: { position: 'absolute', top: 16, right: spacing.md, gap: spacing.sm, zIndex: 10001, direction: 'ltr' },
   fab: {
     width: 48, height: 48, borderRadius: 24, backgroundColor: '#fff',
     alignItems: 'center', justifyContent: 'center',
