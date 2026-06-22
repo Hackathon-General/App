@@ -6,6 +6,7 @@ import { colors, spacing, radius } from '@/theme';
 import { AdminHeader } from '@/components/AdminHeader';
 
 const ITEMS: { route: string; title: string; sub: string; icon: any; color: string }[] = [
+  { route: '/(admin)/sos', title: 'חמ"ל מצוקה', sub: 'קריאות SOS חיות מהשטח', icon: 'alarm-light', color: colors.danger },
   { route: '/(admin)/inbox', title: 'תיבת פניות', sub: 'הרשמות, התנדבות, חיפוש צוות, יצירת קשר', icon: 'inbox-full', color: colors.terracotta },
   { route: '/(admin)/content', title: 'תחנות ותוכן', sub: 'הוספה ועריכה של תחנות השביל', icon: 'map-marker-multiple', color: colors.forest },
   { route: '/(admin)/event', title: 'בניית המרוץ', sub: 'קטגוריות, מקטעים, תחנות מים, לוח זמנים', icon: 'run', color: colors.deepGreen },

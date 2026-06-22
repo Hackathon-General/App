@@ -43,6 +43,7 @@ export default function AdminLayout() {
       <Tabs.Screen name="takehome" options={{ href: null }} />
       <Tabs.Screen name="inbox" options={{ href: null }} />
       <Tabs.Screen name="info" options={{ href: null }} />
+      <Tabs.Screen name="sos" options={{ href: null }} />
       <Tabs.Screen name="tests" options={{ href: null }} />
     </Tabs>
   );
