@@ -1,5 +1,5 @@
 import { httpsCallable } from '@react-native-firebase/functions';
-import { doc, getDoc, collection, getDocs, query, where, deleteDoc } from '@react-native-firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where, deleteDoc, setDoc } from '@react-native-firebase/firestore';
 import { ref, get } from '@react-native-firebase/database';
 import { functions, db, rtdb } from '@/firebase';
 
@@ -63,7 +63,6 @@ export async function runAdminE2E(onStep: OnStep): Promise<{ passed: number; fai
   // 4. NFR create (direct Firestore, as the NFR screen does)
   await step('משימות: יצירת משימה (NFR)', async () => {
     const refDoc = doc(collection(db, 'nfrs'));
-    const { setDoc } = await import('@react-native-firebase/firestore');
     await setDoc(refDoc, { lat: 32.74, lng: 35.1, radius: 150, title: 'משימת בדיקה', task: 'בדיקה', active: true, createdAt: Date.now() });
     return 'נוצרה';
   });
@@ -71,7 +70,6 @@ export async function runAdminE2E(onStep: OnStep): Promise<{ passed: number; fai
   // 5. Alert create → onAlertCreated fan-out
   await step('התראות: שיגור התראה (alert + fan-out)', async () => {
     const refDoc = doc(collection(db, 'alerts'));
-    const { setDoc } = await import('@react-native-firebase/firestore');
     await setDoc(refDoc, { lat: 32.75, lng: 35.07, radius: 1000, title: 'התראת בדיקה', message: 'בדיקה', createdAt: Date.now() });
     return 'נשלחה (onAlertCreated מופעל)';
   });

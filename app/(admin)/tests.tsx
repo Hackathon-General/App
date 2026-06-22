@@ -1,17 +1,28 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { colors, spacing, radius } from '@/theme';
 import { AdminHeader } from '@/components/AdminHeader';
 import { runAdminE2E, type StepResult } from '@/features/admin/e2e';
+import { useAuth } from '@/auth/AuthProvider';
 
-/** Admin-only in-app E2E test runner — exercises every admin capability via the real callables. */
+/** Admin-only in-app E2E test runner — exercises every admin capability via the real callables.
+ *  Deep link: carmelkinneret://(admin)/tests?run=1  → auto-runs the suite on open. */
 export default function AdminTests() {
+  const { run: runParam } = useLocalSearchParams<{ run?: string }>();
+  const { role } = useAuth();
   const [running, setRunning] = useState(false);
   const [steps, setSteps] = useState<StepResult[]>([]);
   const [summary, setSummary] = useState<{ passed: number; failed: number } | null>(null);
+  const startedRef = useRef(false);
 
-  const run = async () => {
+  const run = useCallback(async () => {
+    if (running) return;
+    if (role !== 'admin') { // defense-in-depth: never run for non-admins
+      setSteps([{ name: 'הרשאה', ok: false, detail: 'נדרשת הרשאת מנהל' }]);
+      return;
+    }
     setRunning(true); setSteps([]); setSummary(null);
     try {
       const res = await runAdminE2E((r) => setSteps((s) => [...s, r]));
@@ -19,7 +30,17 @@ export default function AdminTests() {
     } finally {
       setRunning(false);
     }
-  };
+  }, [running, role]);
+
+  // Auto-run when opened via deep link with ?run=1 (once).
+  useFocusEffect(
+    useCallback(() => {
+      if (runParam && !startedRef.current) {
+        startedRef.current = true;
+        run();
+      }
+    }, [runParam, run])
+  );
 
   return (
     <View style={styles.c}>
