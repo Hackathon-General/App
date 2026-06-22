@@ -345,18 +345,21 @@ export default function MapScreen() {
           </Animated.View>
         )}
 
-        {/* Floating controls: zoom +/- · center-on-me · toggle proximity list */}
+        {/* Floating map controls — grouped zoom pill + round action buttons */}
         <View style={styles.fabCol} pointerEvents="box-none">
-          <TouchableOpacity style={styles.fab} onPress={() => zoom(1)}>
-            <MaterialCommunityIcons name="plus" size={24} color={colors.forest} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.fab} onPress={() => zoom(-1)}>
-            <MaterialCommunityIcons name="minus" size={24} color={colors.forest} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.fab} onPress={centerOnMe}>
+          <View style={styles.zoomPill}>
+            <TouchableOpacity style={styles.zoomBtn} onPress={() => zoom(1)} activeOpacity={0.7}>
+              <MaterialCommunityIcons name="plus" size={22} color={colors.ink} />
+            </TouchableOpacity>
+            <View style={styles.zoomDivider} />
+            <TouchableOpacity style={styles.zoomBtn} onPress={() => zoom(-1)} activeOpacity={0.7}>
+              <MaterialCommunityIcons name="minus" size={22} color={colors.ink} />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity style={styles.fab} onPress={centerOnMe} activeOpacity={0.8}>
             <MaterialCommunityIcons name="crosshairs-gps" size={22} color={colors.forest} />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.fab, showList && styles.fabActive]} onPress={() => {
+          <TouchableOpacity style={[styles.fab, showList && styles.fabActive]} activeOpacity={0.8} onPress={() => {
             Haptics.selectionAsync().catch(() => {});
             setShowList((v) => {
               const next = !v;
@@ -489,11 +492,17 @@ const styles = StyleSheet.create({
   },
   recenterTxt: { color: '#fff', fontWeight: '800', fontSize: 14, writingDirection: 'rtl' },
   // Floating controls
-  fabCol: { position: 'absolute', top: 16, right: spacing.md, gap: spacing.sm, zIndex: 10001, direction: 'ltr' },
+  fabCol: { position: 'absolute', top: 16, right: spacing.md, gap: 10, zIndex: 10001, direction: 'ltr', alignItems: 'center' },
+  zoomPill: {
+    backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 22, overflow: 'hidden',
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 5,
+  },
+  zoomBtn: { width: 46, height: 44, alignItems: 'center', justifyContent: 'center' },
+  zoomDivider: { height: 1, backgroundColor: colors.line, marginHorizontal: 8 },
   fab: {
-    width: 48, height: 48, borderRadius: 24, backgroundColor: '#fff',
+    width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.96)',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4, elevation: 5,
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 5,
   },
   fabActive: { backgroundColor: colors.terracotta },
   // Proximity carousel container (above SOS via high zIndex)
