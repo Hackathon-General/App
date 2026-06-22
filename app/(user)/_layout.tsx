@@ -42,6 +42,8 @@ export default function UserLayout() {
           name="profile"
           options={{ title: 'פרופיל', tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="account" color={color} size={size} /> }}
         />
+        {/* Deep-link station route — hidden from the tab bar */}
+        <Tabs.Screen name="station/[id]" options={{ href: null }} />
       </Tabs>
       <SosButton />
     </View>
