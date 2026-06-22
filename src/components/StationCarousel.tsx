@@ -75,20 +75,25 @@ export const StationCarousel = forwardRef<CarouselHandle, {
 
 function Card({ s, index, x, active, onPress }: { s: S; index: number; x: SharedValue<number>; active: boolean; onPress: () => void }) {
   const v = valueTheme[s.value];
+  // Outer transform/opacity: centered card is bigger + fully opaque, neighbors shrink + dim.
   const animStyle = useAnimatedStyle(() => {
-    const pos = index * SNAP;
-    const d = x.value - pos;
-    const scale = interpolate(d, [-SNAP, 0, SNAP], [0.88, 1, 0.88], Extrapolation.CLAMP);
-    const opacity = interpolate(d, [-SNAP, 0, SNAP], [0.5, 1, 0.5], Extrapolation.CLAMP);
-    const translateY = interpolate(d, [-SNAP, 0, SNAP], [14, 0, 14], Extrapolation.CLAMP);
-    // glow strength peaks at center
-    const glow = interpolate(d, [-SNAP, 0, SNAP], [0, 1, 0], Extrapolation.CLAMP);
-    return { transform: [{ scale }, { translateY }], opacity, shadowOpacity: 0.12 + glow * 0.28, shadowRadius: 8 + glow * 10 };
+    const d = x.value - index * SNAP;
+    const scale = interpolate(d, [-SNAP, 0, SNAP], [0.82, 1.04, 0.82], Extrapolation.CLAMP);
+    const opacity = interpolate(d, [-SNAP, 0, SNAP], [0.45, 1, 0.45], Extrapolation.CLAMP);
+    const translateY = interpolate(d, [-SNAP, 0, SNAP], [18, 0, 18], Extrapolation.CLAMP);
+    return { transform: [{ scale }, { translateY }], opacity };
+  });
+  // Inner card: colored border + glow animate with scroll position so the CENTERED card is
+  // always the highlighted one (no lag from controlled state).
+  const cardStyle = useAnimatedStyle(() => {
+    const center = interpolate(x.value - index * SNAP, [-SNAP, 0, SNAP], [0, 1, 0], Extrapolation.CLAMP);
+    return { borderWidth: 1 + center * 2, shadowOpacity: 0.1 + center * 0.3, shadowRadius: 6 + center * 12 };
   });
 
   return (
-    <Animated.View style={[{ width: CARD_W }, animStyle, active && { shadowColor: v.color }]}>
-      <Pressable style={[styles.card, active && { borderColor: v.color, borderWidth: 2 }]} onPress={onPress}>
+    <Animated.View style={[{ width: CARD_W }, animStyle]}>
+      <Animated.View style={[styles.card, { borderColor: v.color, shadowColor: v.color }, cardStyle]}>
+        <Pressable style={styles.press} onPress={onPress}>
         <View style={[styles.stripe, { backgroundColor: v.color }]} />
         <View style={styles.inner}>
           <View style={styles.top}>
@@ -106,13 +111,15 @@ function Card({ s, index, x, active, onPress }: { s: S; index: number; x: Shared
           )}
           <Text style={styles.value} numberOfLines={1}>{v.label}</Text>
         </View>
-      </Pressable>
+        </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: radius.lg, overflow: 'hidden', borderWidth: 2, borderColor: 'transparent', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, elevation: 6, direction: 'rtl' },
+  card: { backgroundColor: '#fff', borderRadius: radius.lg, borderColor: 'transparent', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  press: { flexDirection: 'row', borderRadius: radius.lg, overflow: 'hidden', direction: 'rtl' },
   stripe: { width: 6 },
   inner: { flex: 1, padding: spacing.md },
   top: { flexDirection: 'row', alignItems: 'center', gap: 8, direction: 'rtl' },
