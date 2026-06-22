@@ -79,6 +79,6 @@ const styles = StyleSheet.create({
   cardBody: { padding: spacing.md },
   author: { fontWeight: '700', color: colors.forest, textAlign: 'right' },
   text: { color: colors.ink, marginTop: 4, textAlign: 'right' },
-  fab: { position: 'absolute', bottom: 24, right: 20, backgroundColor: colors.terracotta, paddingHorizontal: 22, paddingVertical: 14, borderRadius: radius.pill, elevation: 5 },
+  fab: { position: 'absolute', bottom: 100, right: 20, backgroundColor: colors.terracotta, paddingHorizontal: 22, paddingVertical: 14, borderRadius: radius.pill, elevation: 5 },
   fabTxt: { color: '#fff', fontWeight: '800', fontSize: 15 },
 });

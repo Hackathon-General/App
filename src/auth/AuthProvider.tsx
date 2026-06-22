@@ -8,7 +8,35 @@ import {
   type FirebaseAuthTypes,
 } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { auth } from '@/firebase';
+import { doc, getDoc, setDoc } from '@react-native-firebase/firestore';
+import { auth, db } from '@/firebase';
+
+/**
+ * Ensure a users/{uid} profile exists (created client-side on first sign-in, since the
+ * server-side blocking trigger requires GCIP). Only sets role:'user' — never admin.
+ */
+async function ensureProfile(user: FirebaseAuthTypes.User) {
+  const ref = doc(db, 'users', user.uid);
+  const snap = await getDoc(ref);
+  if (snap.exists()) return;
+  await setDoc(
+    ref,
+    {
+      uid: user.uid,
+      role: 'user',
+      provider: user.isAnonymous ? 'anonymous' : 'google',
+      isAnonymous: user.isAnonymous,
+      displayName: user.displayName ?? null,
+      photoURL: user.photoURL ?? null,
+      email: user.email ?? null,
+      stationsVisited: [],
+      totalKm: 0,
+      createdAt: Date.now(),
+      lastActiveAt: Date.now(),
+    },
+    { merge: true }
+  );
+}
 
 type Role = 'user' | 'admin';
 
@@ -35,6 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
+        ensureProfile(u).catch(() => {});
         const token = await u.getIdTokenResult();
         setRole((token.claims.role as Role) === 'admin' ? 'admin' : 'user');
       } else {
