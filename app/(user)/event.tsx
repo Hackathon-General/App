@@ -7,7 +7,8 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radius } from '@/theme';
-import { events, content } from '@/content';
+import { content } from '@/content';
+import { useContent } from '@/content/ContentProvider';
 
 const IMAGES: Record<string, any> = {
   'walk.jpg': require('../../assets/brand/walk.jpg'),
@@ -24,6 +25,7 @@ function daysUntil(dateStr: string): number {
 
 export default function EventScreen() {
   const insets = useSafeAreaInsets();
+  const { events } = useContent();
   const days = daysUntil(events.eventDate);
 
   return (

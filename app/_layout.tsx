@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
+import { ContentProvider } from '@/content/ContentProvider';
 import { colors } from '@/theme';
 
 // Force RTL for the Hebrew app. forceRTL only takes effect after a reload, so if the app
@@ -50,7 +51,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <RootNavigator />
+          <ContentProvider>
+            <RootNavigator />
+          </ContentProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

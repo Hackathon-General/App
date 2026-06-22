@@ -5,7 +5,8 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radius, valueTheme } from '@/theme';
-import { stations, content, type Station, type ValueKey } from '@/content';
+import { content } from '@/content';
+import { useContent, type Station, type ValueKey } from '@/content/ContentProvider';
 import { StationSheet } from '@/components/StationSheet';
 import { BottomSheet } from '@/components/BottomSheet';
 
@@ -15,6 +16,7 @@ type SortKey = 'order' | 'value';
 
 export default function StationsScreen() {
   const insets = useSafeAreaInsets();
+  const { stations } = useContent();
   const [region, setRegion] = useState<RegionFilter>('all');
   const [value, setValue] = useState<ValueFilter>('all');
   const [sort, setSort] = useState<SortKey>('order');
@@ -26,7 +28,7 @@ export default function StationsScreen() {
     if (value !== 'all') xs = xs.filter((s) => s.value === value);
     xs.sort((a, b) => (sort === 'order' ? a.number - b.number : a.value.localeCompare(b.value)));
     return xs;
-  }, [region, value, sort]);
+  }, [stations, region, value, sort]);
 
   return (
     <View style={[styles.c, { paddingTop: insets.top + spacing.sm }]}>

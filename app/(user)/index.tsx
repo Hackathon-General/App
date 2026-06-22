@@ -18,7 +18,8 @@ function openWaze(lat: number, lng: number) {
   Linking.openURL(waze).catch(() => Linking.openURL(web));
 }
 import { colors, spacing, radius, valueTheme } from '@/theme';
-import { stations, routes, content, type Station, type ValueKey } from '@/content';
+import { content } from '@/content';
+import { useContent, type Station, type ValueKey } from '@/content/ContentProvider';
 import { StationSheet } from '@/components/StationSheet';
 import { BottomSheet } from '@/components/BottomSheet';
 import { SosButton } from '@/components/SosButton';
@@ -28,8 +29,10 @@ import { useAuth } from '@/auth/AuthProvider';
 
 const VALUE_KEYS = Object.keys(valueTheme) as ValueKey[];
 
-const visibleStationsList = (filter: ValueKey | 'all') =>
-  filter === 'all' ? stations.slice() : stations.filter((s) => s.value === filter);
+const visibleStationsList = (all: Station[], filter: ValueKey | 'all') =>
+  filter === 'all' ? all.slice() : all.filter((s) => s.value === filter);
+
+interface RelayLeg { n: number; from: string; to: string; km: number; fromLat: number; fromLng: number; toLat: number; toLng: number }
 
 // Center of the trail (mid Carmel→Kinneret) for the "off-trail" detection.
 const TRAIL_CENTER = { lat: 32.72, lng: 35.27 };
@@ -44,9 +47,10 @@ const INITIAL_REGION: Region = {
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
+  const { stations, routes } = useContent();
   const [selected, setSelected] = useState<Station | null>(null);
   const [filter, setFilter] = useState<ValueKey | 'all'>('all');
-  const [leg, setLeg] = useState<(typeof routes.relayLegs)[number] | null>(null);
+  const [leg, setLeg] = useState<RelayLeg | null>(null);
   const { torch } = useTorch();
   const { user } = useAuth();
   const livePins = useLive(); // everyone sharing publicly (phones + sensors), Snapchat-style
@@ -69,13 +73,13 @@ export default function MapScreen() {
 
   // Stations ordered by proximity to me (fallback: trail order).
   const orderedStations = useMemo(() => {
-    const xs = visibleStationsList(filter);
+    const xs = visibleStationsList(stations, filter);
     if (!myPos) return xs;
     return xs
       .map((s) => ({ s, d: distanceMeters(myPos, { lat: s.lat, lng: s.lng }) }))
       .sort((a, b) => a.d - b.d)
       .map((x) => ({ ...x.s, _distM: x.d }));
-  }, [filter, myPos]);
+  }, [stations, filter, myPos]);
 
   const focusStation = (s: { lat: number; lng: number }) => {
     Haptics.selectionAsync().catch(() => {});
@@ -116,7 +120,7 @@ export default function MapScreen() {
 
   const visibleStations = useMemo(
     () => (filter === 'all' ? stations : stations.filter((s) => s.value === filter)),
-    [filter]
+    [stations, filter]
   );
 
   return (

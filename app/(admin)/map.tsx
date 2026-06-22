@@ -7,7 +7,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 const MAP_PROVIDER = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radius, valueTheme } from '@/theme';
-import { stations, routes } from '@/content';
+import { useContent } from '@/content/ContentProvider';
 import { useLive, type LivePin } from '@/features/live/useLive';
 import { useTorch } from '@/features/torch/useTorch';
 
@@ -15,6 +15,7 @@ const INITIAL: Region = { latitude: 32.72, longitude: 35.27, latitudeDelta: 0.55
 
 export default function AdminMap() {
   const insets = useSafeAreaInsets();
+  const { stations, routes } = useContent();
   const pins = useLive();
   const { torch } = useTorch();
   const [sel, setSel] = useState<LivePin | null>(null);

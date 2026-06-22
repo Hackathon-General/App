@@ -1,13 +1,14 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { stations } from '@/content';
+import { useContent } from '@/content/ContentProvider';
 import { StationSheet } from '@/components/StationSheet';
 import { colors } from '@/theme';
 
 /** Deep-link target: carmelkinneret://station/<id> — opens the station mission sheet. */
 export default function StationRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { stations } = useContent();
   const station = stations.find((s) => s.id === id);
 
   const close = () => (router.canGoBack() ? router.back() : router.replace('/(user)'));
