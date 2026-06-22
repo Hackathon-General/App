@@ -1,8 +1,11 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, Modal, Text, TouchableOpacity, ScrollView, Platform, Linking } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, ScrollView, Platform, Linking } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
+import * as Haptics from 'expo-haptics';
+import { distanceMeters } from '@/features/torch/distance';
 
 // iOS → Apple Maps (renders without a Google key); Android → Google Maps (key in manifest).
 const MAP_PROVIDER = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
@@ -16,9 +19,15 @@ function openWaze(lat: number, lng: number) {
 import { colors, spacing, radius, valueTheme } from '@/theme';
 import { stations, routes, content, type Station, type ValueKey } from '@/content';
 import { StationSheet } from '@/components/StationSheet';
+import { BottomSheet } from '@/components/BottomSheet';
 import { useTorch } from '@/features/torch/useTorch';
+import { useLive } from '@/features/live/useLive';
+import { useAuth } from '@/auth/AuthProvider';
 
 const VALUE_KEYS = Object.keys(valueTheme) as ValueKey[];
+
+const visibleStationsList = (filter: ValueKey | 'all') =>
+  filter === 'all' ? stations.slice() : stations.filter((s) => s.value === filter);
 
 const INITIAL_REGION: Region = {
   latitude: 32.72,
@@ -34,6 +43,50 @@ export default function MapScreen() {
   const [filter, setFilter] = useState<ValueKey | 'all'>('all');
   const [leg, setLeg] = useState<(typeof routes.relayLegs)[number] | null>(null);
   const { torch } = useTorch();
+  const { user } = useAuth();
+  const livePins = useLive(); // everyone sharing publicly (phones + sensors), Snapchat-style
+  const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [showList, setShowList] = useState(false); // toggleable proximity carousel
+
+  // Track my location for proximity sorting + "center on me".
+  useEffect(() => {
+    let sub: Location.LocationSubscription | undefined;
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+      sub = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.Balanced, distanceInterval: 30, timeInterval: 8000 },
+        (l) => setMyPos({ lat: l.coords.latitude, lng: l.coords.longitude })
+      );
+    })();
+    return () => sub?.remove();
+  }, []);
+
+  // Stations ordered by proximity to me (fallback: trail order).
+  const orderedStations = useMemo(() => {
+    const xs = visibleStationsList(filter);
+    if (!myPos) return xs;
+    return xs
+      .map((s) => ({ s, d: distanceMeters(myPos, { lat: s.lat, lng: s.lng }) }))
+      .sort((a, b) => a.d - b.d)
+      .map((x) => ({ ...x.s, _distM: x.d }));
+  }, [filter, myPos]);
+
+  const focusStation = (s: { lat: number; lng: number }) => {
+    Haptics.selectionAsync().catch(() => {});
+    mapRef.current?.animateToRegion(
+      { latitude: s.lat, longitude: s.lng, latitudeDelta: 0.03, longitudeDelta: 0.03 },
+      700
+    );
+  };
+
+  const centerOnMe = () => {
+    if (!myPos) return;
+    mapRef.current?.animateToRegion(
+      { latitude: myPos.lat, longitude: myPos.lng, latitudeDelta: 0.05, longitudeDelta: 0.05 },
+      700
+    );
+  };
 
   const visibleStations = useMemo(
     () => (filter === 'all' ? stations : stations.filter((s) => s.value === filter)),
@@ -118,12 +171,31 @@ export default function MapScreen() {
               </View>
             </Marker>
           ))}
+          {/* Live people sharing publicly (Snapchat-style) — phones = avatar, sensors = runner */}
+          {livePins
+            .filter((p) => p.id !== user?.uid)
+            .map((p) => (
+              <Marker
+                key={`live-${p.id}`}
+                coordinate={{ latitude: p.lat, longitude: p.lng }}
+                title={p.name ?? 'מטייל/ת'}
+                description={p.source === 'sensor' ? 'חיישן' : 'משתף/ת מיקום'}
+                anchor={{ x: 0.5, y: 0.5 }}
+              >
+                <View style={[styles.personMarker, p.source === 'sensor' && styles.sensorMarker]}>
+                  <Text style={styles.personTxt}>{p.source === 'sensor' ? '🏃' : (p.name ?? 'מ')[0]}</Text>
+                </View>
+              </Marker>
+            ))}
+
           {torch && (
             <Marker
               coordinate={{ latitude: torch.lat, longitude: torch.lng }}
               title={torch.status === 'held' ? content.ui.torch.heldByOther : content.ui.torch.waiting}
-              pinColor={colors.gold}
-            />
+              anchor={{ x: 0.5, y: 0.5 }}
+            >
+              <Text style={{ fontSize: 30 }}>🔥</Text>
+            </Marker>
           )}
         </MapView>
 
@@ -143,14 +215,44 @@ export default function MapScreen() {
             </View>
           </View>
         )}
+
+        {/* Floating controls: center-on-me + toggle proximity list */}
+        <View style={styles.fabCol} pointerEvents="box-none">
+          <TouchableOpacity style={styles.fab} onPress={centerOnMe}>
+            <MaterialCommunityIcons name="crosshairs-gps" size={22} color={colors.forest} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.fab, showList && styles.fabActive]} onPress={() => setShowList((v) => !v)}>
+            <MaterialCommunityIcons name={showList ? 'close' : 'view-list'} size={22} color={showList ? '#fff' : colors.forest} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Toggleable proximity carousel — tap a card → zoom to it; ordered by distance from me */}
+        {showList && (
+          <View style={styles.carousel}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: spacing.md }}>
+              {orderedStations.map((s) => (
+                <TouchableOpacity
+                  key={s.id}
+                  style={styles.placeCard}
+                  onPress={() => { focusStation(s); setSelected(stations.find((x) => x.id === s.id) ?? null); }}
+                >
+                  <View style={[styles.placeDot, { backgroundColor: valueTheme[s.value].color }]} />
+                  <Text style={styles.placeName} numberOfLines={1}>{s.number}. {s.name}</Text>
+                  {'_distM' in s && (s as any)._distM != null && (
+                    <Text style={styles.placeDist}>{((s as any)._distM / 1000).toFixed(1)} ק"מ ממך</Text>
+                  )}
+                  <Text style={styles.placeValue}>{valueTheme[s.value].label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </View>
 
-      {/* Station detail sheet */}
-      <Modal visible={!!selected} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
-        <View style={styles.modalBackdrop}>
-          {selected && <StationSheet station={selected} onClose={() => setSelected(null)} onStartMission={() => setSelected(null)} />}
-        </View>
-      </Modal>
+      {/* Station detail sheet — animated, drag-to-dismiss */}
+      <BottomSheet visible={!!selected} onClose={() => setSelected(null)}>
+        {selected && <StationSheet station={selected} onClose={() => setSelected(null)} onStartMission={() => setSelected(null)} />}
+      </BottomSheet>
     </View>
   );
 }
@@ -187,7 +289,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.bg,
   },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
   legCard: {
     position: 'absolute',
     bottom: spacing.lg,
@@ -230,4 +331,30 @@ const styles = StyleSheet.create({
     borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 8,
     borderLeftColor: 'transparent', borderRightColor: 'transparent',
   },
+  // Live person (Snapchat-style)
+  personMarker: {
+    width: 38, height: 38, borderRadius: 19, backgroundColor: colors.forest,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff',
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 3, elevation: 4,
+  },
+  sensorMarker: { backgroundColor: colors.sky },
+  personTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  // Floating controls
+  fabCol: { position: 'absolute', bottom: 110, right: spacing.md, gap: spacing.sm },
+  fab: {
+    width: 48, height: 48, borderRadius: 24, backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4, elevation: 5,
+  },
+  fabActive: { backgroundColor: colors.terracotta },
+  // Proximity carousel
+  carousel: { position: 'absolute', bottom: 24, left: 0, right: 0 },
+  placeCard: {
+    width: 210, backgroundColor: '#fff', borderRadius: radius.md, padding: spacing.md,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 6, elevation: 4, direction: 'rtl',
+  },
+  placeDot: { width: 12, height: 12, borderRadius: 6, marginBottom: 6 },
+  placeName: { fontWeight: '800', color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
+  placeDist: { color: colors.terracotta, fontWeight: '700', fontSize: 12, textAlign: 'right', marginTop: 2 },
+  placeValue: { color: colors.muted, fontSize: 12, textAlign: 'right', marginTop: 2 },
 });

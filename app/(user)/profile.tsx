@@ -38,7 +38,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
+    <ScrollView style={[styles.container, { paddingTop: insets.top + spacing.lg }]} showsVerticalScrollIndicator={false}>
       <View style={styles.head}>
         {user?.photoURL ? (
           <Image source={{ uri: user.photoURL }} style={styles.avatar} />
@@ -97,7 +97,7 @@ function Stat({ num, label }: { num: string | number; label: string }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, padding: spacing.lg },
+  container: { flex: 1, backgroundColor: colors.bg, padding: spacing.lg, direction: 'rtl' },
   head: { alignItems: 'center' },
   avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: colors.line },
   avatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.forest },

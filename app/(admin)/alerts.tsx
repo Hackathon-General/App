@@ -37,7 +37,7 @@ export default function AlertsScreen() {
   };
 
   return (
-    <ScrollView style={[styles.c, { paddingTop: insets.top }]} keyboardShouldPersistTaps="handled">
+    <ScrollView style={[styles.c, { paddingTop: insets.top }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <Text style={styles.h}>שגר התראת GPS</Text>
       <View style={styles.mapWrap}>
         <MapView style={StyleSheet.absoluteFill} provider={PROVIDER_GOOGLE} initialRegion={INITIAL}

@@ -17,8 +17,7 @@ export function StationSheet({ station, onClose, onStartMission }: {
 
   return (
     <View style={styles.sheet}>
-      <View style={[styles.handle]} />
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <View style={[styles.valueChip, { backgroundColor: v.color }]}>
             <Text style={styles.valueChipTxt}>{v.label}</Text>
@@ -63,18 +62,17 @@ function Field({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg, maxHeight: '75%' },
-  handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: colors.line, marginBottom: spacing.md },
+  sheet: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg, direction: 'rtl' },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   valueChip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.pill },
   valueChipTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
   close: { fontSize: 20, color: colors.muted },
-  title: { fontSize: 20, fontWeight: '800', color: colors.ink, marginTop: spacing.sm, textAlign: 'right' },
-  about: { fontSize: 15, color: colors.muted, marginTop: spacing.xs, textAlign: 'right' },
+  title: { fontSize: 20, fontWeight: '800', color: colors.ink, marginTop: spacing.sm, textAlign: 'right', writingDirection: 'rtl' },
+  about: { fontSize: 15, color: colors.muted, marginTop: spacing.xs, textAlign: 'right', writingDirection: 'rtl' },
   field: { marginTop: spacing.md },
-  fieldLabel: { fontSize: 13, fontWeight: '700', color: colors.terracotta, textAlign: 'right' },
-  fieldValue: { fontSize: 15, color: colors.ink, textAlign: 'right', marginTop: 2 },
-  contact: { fontSize: 15, color: colors.forest, fontWeight: '700', marginTop: spacing.md, textAlign: 'right' },
+  fieldLabel: { fontSize: 13, fontWeight: '700', color: colors.terracotta, textAlign: 'right', writingDirection: 'rtl' },
+  fieldValue: { fontSize: 15, color: colors.ink, textAlign: 'right', marginTop: 2, writingDirection: 'rtl' },
+  contact: { fontSize: 15, color: colors.forest, fontWeight: '700', marginTop: spacing.md, textAlign: 'right', writingDirection: 'rtl' },
   cta: { marginTop: spacing.lg, paddingVertical: 14, borderRadius: radius.pill, alignItems: 'center' },
   ctaTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
 });

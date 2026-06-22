@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -46,7 +47,8 @@ export default function FeedScreen() {
         <FlashList
           data={posts}
           keyExtractor={(p) => p.id}
-          renderItem={({ item }) => <PostCard post={item} />}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item, index }) => <PostCard post={item} index={index} />}
           ListEmptyComponent={<Text style={styles.empty}>היו הראשונים לשתף רגע מהמסע ✨</Text>}
           contentContainerStyle={{ padding: spacing.md }}
         />
@@ -58,20 +60,20 @@ export default function FeedScreen() {
   );
 }
 
-function PostCard({ post }: { post: FeedPost }) {
+function PostCard({ post, index = 0 }: { post: FeedPost; index?: number }) {
   return (
-    <View style={styles.card}>
+    <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 50).springify()} style={styles.card}>
       {!!post.imageUrl && <Image source={{ uri: post.imageUrl }} style={styles.cardImg} contentFit="cover" />}
       <View style={styles.cardBody}>
         <Text style={styles.author}>{post.authorName ?? 'מטייל/ת'}</Text>
         {!!post.text && <Text style={styles.text}>{post.text}</Text>}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, backgroundColor: colors.bg, direction: 'rtl' },
   header: { fontSize: 20, fontWeight: '800', color: colors.ink, textAlign: 'center', paddingVertical: spacing.sm },
   empty: { textAlign: 'center', color: colors.muted, marginTop: 60, fontSize: 16 },
   card: { backgroundColor: '#fff', borderRadius: radius.md, marginBottom: spacing.md, overflow: 'hidden', elevation: 2 },

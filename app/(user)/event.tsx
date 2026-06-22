@@ -14,7 +14,7 @@ const IMAGES: Record<string, any> = {
 export default function EventScreen() {
   const insets = useSafeAreaInsets();
   return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top }]} contentContainerStyle={{ paddingBottom: 40 }}>
+    <ScrollView style={[styles.container, { paddingTop: insets.top }]} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>{events.categories ? content.race.name : ''}</Text>
       <Text style={styles.headline}>{content.race.headline}</Text>
       <Text style={styles.notice}>{content.race.registrationStatus}</Text>
@@ -52,7 +52,7 @@ export default function EventScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, padding: spacing.md },
+  container: { flex: 1, backgroundColor: colors.bg, padding: spacing.md, direction: 'rtl' },
   title: { fontSize: 24, fontWeight: '900', color: colors.forest, textAlign: 'center' },
   headline: { fontSize: 16, color: colors.ink, textAlign: 'center', marginTop: 4 },
   notice: { fontSize: 14, color: colors.danger, textAlign: 'center', marginTop: spacing.sm, fontWeight: '700' },

@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radius, valueTheme } from '@/theme';
 import { stations, content, type Station, type ValueKey } from '@/content';
 import { StationSheet } from '@/components/StationSheet';
+import { BottomSheet } from '@/components/BottomSheet';
 
 type RegionFilter = 'all' | 'east' | 'west';
 type ValueFilter = ValueKey | 'all';
@@ -55,24 +57,25 @@ export default function StationsScreen() {
       <FlashList
         data={list}
         keyExtractor={(s) => s.id}
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: spacing.md }}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => setSelected(item)}>
-            <View style={[styles.dot, { backgroundColor: valueTheme[item.value].color }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.cardTitle}>{item.number}. {item.name}</Text>
-              <Text style={styles.cardSub} numberOfLines={1}>{item.whatYouDo}</Text>
-            </View>
-            <Text style={styles.valueTag}>{valueTheme[item.value].label}</Text>
-          </TouchableOpacity>
+        renderItem={({ item, index }) => (
+          <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).springify()}>
+            <TouchableOpacity style={styles.card} onPress={() => setSelected(item)} activeOpacity={0.7}>
+              <View style={[styles.dot, { backgroundColor: valueTheme[item.value].color }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitle}>{item.number}. {item.name}</Text>
+                <Text style={styles.cardSub} numberOfLines={1}>{item.whatYouDo}</Text>
+              </View>
+              <Text style={styles.valueTag}>{valueTheme[item.value].label}</Text>
+            </TouchableOpacity>
+          </Animated.View>
         )}
       />
 
-      <Modal visible={!!selected} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
-        <View style={styles.backdrop}>
-          {selected && <StationSheet station={selected} onClose={() => setSelected(null)} />}
-        </View>
-      </Modal>
+      <BottomSheet visible={!!selected} onClose={() => setSelected(null)}>
+        {selected && <StationSheet station={selected} onClose={() => setSelected(null)} />}
+      </BottomSheet>
     </View>
   );
 }
@@ -86,7 +89,7 @@ function Chip({ label, active, color, onPress, small }: { label: string; active:
 }
 
 const styles = StyleSheet.create({
-  c: { flex: 1, backgroundColor: colors.bg },
+  c: { flex: 1, backgroundColor: colors.bg, direction: 'rtl' },
   h: { fontSize: 20, fontWeight: '800', color: colors.ink, textAlign: 'center', marginBottom: spacing.sm },
   filterBar: { height: 44, marginBottom: spacing.xs },
   row: { gap: spacing.sm, paddingHorizontal: spacing.md, alignItems: 'center' },
@@ -100,5 +103,4 @@ const styles = StyleSheet.create({
   cardTitle: { fontWeight: '700', color: colors.ink, textAlign: 'right' },
   cardSub: { color: colors.muted, fontSize: 13, textAlign: 'right' },
   valueTag: { fontSize: 11, color: colors.muted },
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
 });

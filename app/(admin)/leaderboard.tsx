@@ -35,6 +35,7 @@ export default function Leaderboard() {
       <FlashList
         data={rows}
         keyExtractor={(r) => r.id}
+        showsVerticalScrollIndicator={false}
         renderItem={({ item, index }) => (
           <View style={styles.row}>
             <Text style={styles.rank}>{index + 1}</Text>
@@ -49,7 +50,7 @@ export default function Leaderboard() {
 }
 
 const styles = StyleSheet.create({
-  c: { flex: 1, backgroundColor: colors.bg, padding: spacing.md },
+  c: { flex: 1, backgroundColor: colors.bg, padding: spacing.md, direction: 'rtl' },
   h: { fontSize: 20, fontWeight: '800', color: colors.ink, textAlign: 'center' },
   bank: { alignItems: 'center', backgroundColor: colors.deepGreen, borderRadius: radius.md, padding: spacing.lg, marginVertical: spacing.md },
   bankNum: { fontSize: 40, fontWeight: '900', color: colors.gold },

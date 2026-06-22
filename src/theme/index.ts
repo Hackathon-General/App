@@ -1,5 +1,6 @@
 export { colors, valueTheme } from './colors';
 export type { ValueKey } from './colors';
+export { isRTL, rtlView, rtlText, rtlTextCenter } from './rtl';
 
 export const fonts = {
   // Noto Sans Hebrew — the same family used by carmel-kinneret.org. Loaded via expo-font.
