@@ -61,9 +61,15 @@ export const StationCarousel = forwardRef<CarouselHandle, {
   };
 
   const dragging = useRef(false);
+  const lastSlot = useSharedValue(-1); // UI-thread guard: only hop to JS when the centered slot changes
   const scrollHandler = useAnimatedScrollHandler({
-    // Live: update highlight every frame (map marker tracks the card). Settle: allow map pan.
-    onScroll: (e) => { x.value = e.contentOffset.x; runOnJS(report)(e.contentOffset.x, false); },
+    // x drives the highlight worklets every frame (no JS hop). Only cross to JS when the
+    // centered slot actually changes — keeps the map marker in sync at ~zero bridge cost.
+    onScroll: (e) => {
+      x.value = e.contentOffset.x;
+      const slot = Math.round(e.contentOffset.x / SNAP);
+      if (slot !== lastSlot.value) { lastSlot.value = slot; runOnJS(report)(e.contentOffset.x, false); }
+    },
     onBeginDrag: () => { runOnJS(setDragging)(true); },
     onMomentumEnd: (e) => { runOnJS(setDragging)(false); runOnJS(report)(e.contentOffset.x, true); },
     onEndDrag: (e) => { runOnJS(report)(e.contentOffset.x, true); },
@@ -79,12 +85,17 @@ export const StationCarousel = forwardRef<CarouselHandle, {
     return () => clearTimeout(t);
   }, [activeSlot]);
 
+  // Exact per-card snap offsets (offset i centers card i). Unambiguous vs snapToInterval under RTL/gap.
+  const snapOffsets = stations.map((_, i) => i * SNAP);
+
   return (
     <Animated.ScrollView
       ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator={false}
-      snapToInterval={SNAP}
+      snapToOffsets={snapOffsets}
+      snapToAlignment="start"
+      disableIntervalMomentum
       decelerationRate="fast"
       onScroll={scrollHandler}
       scrollEventThrottle={16}

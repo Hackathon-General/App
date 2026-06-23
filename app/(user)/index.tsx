@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, ScrollView, Platform, Linking } from 'react-native';
-import MapView, { Marker, Polyline, type Region } from 'react-native-maps';
+import MapView, { Marker, Polyline, Circle, type Region } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +26,9 @@ import { SosButton } from '@/components/SosButton';
 import { useTorch } from '@/features/torch/useTorch';
 import { useLive } from '@/features/live/useLive';
 import { useFeedPins } from '@/features/feed/feed';
+import { useNfrs } from '@/features/missions/useNfrs';
+import { useAlerts, ALERT_KIND } from '@/features/alerts/useAlerts';
+import { PulseCircle } from '@/components/PulseCircle';
 import { useAuth } from '@/auth/AuthProvider';
 
 const VALUE_KEYS = Object.keys(valueTheme) as ValueKey[];
@@ -53,6 +56,8 @@ export default function MapScreen() {
   const { user } = useAuth();
   const livePins = useLive(); // everyone sharing publicly (phones + sensors), Snapchat-style
   const feedPins = useFeedPins(); // community moments users opted to show on the map
+  const nfrs = useNfrs();   // active value-missions placed by admins (radius zones)
+  const alerts = useAlerts(); // admin geo-alerts (radius zones)
   const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
   const [showList, setShowList] = useState(false); // toggleable proximity carousel
   const [activeId, setActiveId] = useState<string | null>(null); // carousel ↔ map highlighted station (by id, list is proximity-sorted)
@@ -214,6 +219,31 @@ export default function MapScreen() {
               onPress={() => setLeg(leg)}
             />
           ))}
+
+          {/* Active value-mission zones (radius + pulse + numbered pin) */}
+          {nfrs.map((n, i) => (
+            <React.Fragment key={`nfr-${n.id}`}>
+              <Circle center={{ latitude: n.lat, longitude: n.lng }} radius={n.radius ?? 150} strokeColor={colors.forest} fillColor="rgba(44,110,73,0.12)" strokeWidth={2} />
+              <PulseCircle lat={n.lat} lng={n.lng} radius={n.radius ?? 150} color={colors.forest} />
+              <Marker coordinate={{ latitude: n.lat, longitude: n.lng }} title={n.title} description={n.task} anchor={{ x: 0.5, y: 0.5 }}>
+                <View style={styles.nfrZonePin}><MaterialCommunityIcons name="star-four-points" size={15} color="#fff" /></View>
+              </Marker>
+            </React.Fragment>
+          ))}
+
+          {/* Admin alert zones (kind-colored radius + pulse + pin) */}
+          {alerts.map((a) => {
+            const k = ALERT_KIND[a.kind ?? 'info'];
+            return (
+              <React.Fragment key={`alert-${a.id}`}>
+                <Circle center={{ latitude: a.lat, longitude: a.lng }} radius={a.radius ?? 300} strokeColor={k.color} fillColor={`${k.color}22`} strokeWidth={2} />
+                <PulseCircle lat={a.lat} lng={a.lng} radius={a.radius ?? 300} color={k.color} />
+                <Marker coordinate={{ latitude: a.lat, longitude: a.lng }} title={a.title} description={a.message} anchor={{ x: 0.5, y: 0.5 }}>
+                  <View style={[styles.alertZonePin, { backgroundColor: k.color }]}><MaterialCommunityIcons name={k.icon as never} size={15} color="#fff" /></View>
+                </Marker>
+              </React.Fragment>
+            );
+          })}
 
           {/* נקודות מעבר (waypoints) — distinct diamond marker with start/finish/number */}
           {routes.waypoints.map((w, i) => {
@@ -472,6 +502,8 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: '#fff',
   },
   stationPinActive: { width: 42, height: 42, borderRadius: 21, borderWidth: 3, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, elevation: 6 },
+  nfrZonePin: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.forest, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 3, elevation: 5 },
+  alertZonePin: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 3, elevation: 5 },
   stationTip: {
     width: 0, height: 0, marginTop: -2,
     borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 8,
