@@ -156,6 +156,28 @@ export async function runAdminE2E(onStep: OnStep): Promise<{ passed: number; fai
     return 'נגיש';
   });
 
+  // 13b. Torch relay E2E: reset near a point → take → drop ~150m away → community km grows
+  await step('לפיד: מסלול מלא (reset→take→drop→km עולה)', async () => {
+    const resetTorch = httpsCallable(functions, 'resetTorch');
+    const takeTorch = httpsCallable(functions, 'takeTorch');
+    const dropTorch = httpsCallable(functions, 'dropTorch');
+    const A = { lat: 32.7400, lng: 35.1000 };
+    const B = { lat: 32.7413, lng: 35.1000 }; // ~145m north of A (within anti-cheat speed limit)
+
+    const before = Number((await get(ref(rtdb, 'community/totalKm'))).val()) || 0;
+    await resetTorch({ lat: A.lat, lng: A.lng });        // admin: place torch at A (status: waiting)
+    await sleep(400);
+    await takeTorch({ lat: A.lat, lng: A.lng, name: 'E2E' });  // pick up (in radius)
+    await sleep(2200);                                    // dwell so speed = dist/time is realistic
+    const res: any = await dropTorch({ lat: B.lat, lng: B.lng, segmentKm: 0.145 });
+    const km = res?.data?.km ?? 0;
+    if (km <= 0) throw new Error('segment rejected (km=0)');
+    await sleep(500);
+    const after = Number((await get(ref(rtdb, 'community/totalKm'))).val()) || 0;
+    if (after <= before) throw new Error(`community km did not grow (${before}→${after})`);
+    return `מקטע ${km.toFixed(3)} ק"מ נרשם · בנק ${before.toFixed(1)}→${after.toFixed(1)}`;
+  });
+
   // cleanup all test docs
   await step('ניקוי נתוני בדיקה', async () => {
     await deleteStation({ id: TEST_ID }).catch(() => {});
