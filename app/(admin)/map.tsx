@@ -6,6 +6,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radius } from '@/theme';
+import { getIdTokenResult } from '@react-native-firebase/auth';
+import { auth } from '@/firebase';
 import { useContent } from '@/content/ContentProvider';
 import { useLive, type LivePin } from '@/features/live/useLive';
 import { useFeedPins } from '@/features/feed/feed';
@@ -48,9 +50,16 @@ export default function AdminMap() {
     setPlacingTorch(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     try {
-      await resetTorch({ lat: latitude, lng: longitude });
+      // Debug: confirm we have a signed-in user + admin claim before calling.
+      const u = auth.currentUser;
+      const tok = u ? await getIdTokenResult(u, true) : null; // force-refresh claims
+      console.log('[placeTorch] user:', u?.uid ?? 'NULL', 'isAnon:', u?.isAnonymous, 'role-claim:', tok?.claims?.role ?? 'none');
+      console.log('[placeTorch] calling resetTorch', { lat: latitude, lng: longitude });
+      const res = await resetTorch({ lat: latitude, lng: longitude });
+      console.log('[placeTorch] OK', JSON.stringify(res?.data));
     } catch (err: any) {
-      Alert.alert('שגיאה', err?.message ?? '');
+      console.warn('[placeTorch] FAILED', { code: err?.code, message: err?.message, details: err?.details });
+      Alert.alert('שגיאה בהצבת לפיד', `${err?.code ?? ''} ${err?.message ?? ''}`);
     }
   };
 

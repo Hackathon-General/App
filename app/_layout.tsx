@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { I18nManager, DevSettings } from 'react-native';
+import { I18nManager, DevSettings, View, Text, ScrollView } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -9,17 +9,37 @@ import { ContentProvider } from '@/content/ContentProvider';
 import { colors } from '@/theme';
 import '@/notifications/notifications'; // registers the foreground notification handler app-wide
 
-// Force RTL for the Hebrew app. forceRTL only takes effect after a reload, so if the app
-// launched LTR, set the flag and reload ONCE so the whole native layout flips to RTL.
-I18nManager.allowRTL(true);
-if (!I18nManager.isRTL) {
-  I18nManager.forceRTL(true);
-  if (__DEV__ && DevSettings?.reload) {
-    setTimeout(() => DevSettings.reload(), 0);
+// Force RTL for the Hebrew app. Wrapped in try/catch so a native quirk here can NEVER crash
+// startup. DevSettings.reload() is DEV-only (it doesn't exist in a release APK → would crash).
+try {
+  I18nManager.allowRTL(true);
+  if (!I18nManager.isRTL) {
+    I18nManager.forceRTL(true);
+    if (__DEV__ && typeof DevSettings?.reload === 'function') {
+      setTimeout(() => { try { DevSettings.reload(); } catch {} }, 0);
+    }
+    // In production the flag applies on the NEXT launch — no reload call, no crash.
   }
+} catch (e) {
+  console.warn('[rtl] forceRTL failed (non-fatal):', e);
 }
 
-SplashScreen.preventAutoHideAsync().catch(() => {});
+try { SplashScreen.preventAutoHideAsync().catch(() => {}); } catch {}
+
+// Expo Router catches any render error app-wide and renders this instead of a white-screen crash.
+// On a release APK this turns an invisible crash into a readable message.
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => void }) {
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg, padding: 24, justifyContent: 'center' }}>
+      <Text style={{ fontSize: 20, fontWeight: '900', color: colors.ink, textAlign: 'center', marginBottom: 12 }}>אופס — משהו נכשל</Text>
+      <ScrollView style={{ maxHeight: 240, backgroundColor: '#fff', borderRadius: 12, padding: 12 }}>
+        <Text selectable style={{ color: colors.danger, fontSize: 13 }}>{error?.name}: {error?.message}</Text>
+        <Text selectable style={{ color: colors.muted, fontSize: 11, marginTop: 8 }}>{error?.stack}</Text>
+      </ScrollView>
+      <Text onPress={retry} style={{ color: '#fff', backgroundColor: colors.forest, textAlign: 'center', fontWeight: '800', paddingVertical: 14, borderRadius: 999, marginTop: 16, overflow: 'hidden' }}>נסה שוב</Text>
+    </View>
+  );
+}
 
 function RootNavigator() {
   const { user, role, initializing } = useAuth();

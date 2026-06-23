@@ -15,15 +15,19 @@ import { notifyNow } from './notifications';
 export function useForegroundMessages() {
   const startedAt = useRef(Date.now());
 
-  // 1) Foreground FCM messages → local notification.
+  // 1) Foreground FCM messages → local notification. Guarded so a native messaging quirk
+  //    can't crash the app (release APK safety).
   useEffect(() => {
-    const unsub = onMessage(messaging, async (msg: any) => {
-      const title = msg?.notification?.title ?? msg?.data?.title ?? 'התראה';
-      const body = msg?.notification?.body ?? msg?.data?.body ?? '';
-      console.log('[fcm] foreground message → notify', { title });
-      await notifyNow(title, body, msg?.data);
-    });
-    return () => unsub();
+    let unsub = () => {};
+    try {
+      unsub = onMessage(messaging, async (msg: any) => {
+        const title = msg?.notification?.title ?? msg?.data?.title ?? 'התראה';
+        const body = msg?.notification?.body ?? msg?.data?.body ?? '';
+        console.log('[fcm] foreground message → notify', { title });
+        await notifyNow(title, body, msg?.data);
+      });
+    } catch (e) { console.warn('[fcm] onMessage failed (non-fatal):', e); }
+    return () => { try { unsub(); } catch {} };
   }, []);
 
   // 2) New admin alerts created while the app is open → local notification.

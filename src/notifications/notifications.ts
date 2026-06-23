@@ -4,18 +4,20 @@ import { doc, setDoc } from '@react-native-firebase/firestore';
 import { db, auth } from '@/firebase';
 
 // Show notifications in the FOREGROUND too. Include both new (banner/list) and legacy (alert) keys.
-Notifications.setNotificationHandler({
-  handleNotification: async () => {
-    console.log('[notif] handler → showing banner');
-    return {
+// Wrapped — a native quirk at module-eval must NEVER crash app startup (release APK safety).
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
       shouldShowBanner: true,
       shouldShowList: true,
       shouldShowAlert: true,
       shouldPlaySound: true,
       shouldSetBadge: false,
-    } as any;
-  },
-});
+    } as any),
+  });
+} catch (e) {
+  console.warn('[notif] setNotificationHandler failed (non-fatal):', e);
+}
 
 /** Ensure permission + Android channel. Safe to call before scheduling a local notification. */
 export async function ensureNotifReady(): Promise<boolean> {
