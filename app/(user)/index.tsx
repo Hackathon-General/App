@@ -55,7 +55,7 @@ export default function MapScreen() {
   const feedPins = useFeedPins(); // community moments users opted to show on the map
   const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
   const [showList, setShowList] = useState(false); // toggleable proximity carousel
-  const [activeIdx, setActiveIdx] = useState(0);   // carousel ↔ map highlighted station
+  const [activeId, setActiveId] = useState<string | null>(null); // carousel ↔ map highlighted station (by id, list is proximity-sorted)
   const carouselRef = useRef<CarouselHandle>(null);
 
   // Track my location for proximity sorting + "center on me".
@@ -82,8 +82,8 @@ export default function MapScreen() {
       .map((x) => ({ ...x.s, _distM: x.d }));
   }, [stations, filter, myPos]);
 
-  // The station currently highlighted in the carousel (drives marker pulse + path-to-me).
-  const activeStation = showList ? orderedStations[activeIdx] : undefined;
+  // The station currently highlighted in the carousel (by id — drives marker pulse + path-to-me).
+  const activeStation = showList && activeId ? orderedStations.find((s) => s.id === activeId) : undefined;
 
   const focusStation = (s: { lat: number; lng: number }) => {
     mapRef.current?.animateToRegion(
@@ -92,22 +92,19 @@ export default function MapScreen() {
     );
   };
 
-  // Carousel moved → highlight + zoom to that station.
-  const onCarouselActive = (i: number) => {
-    console.log('[MapScreen] onCarouselActive → setActiveIdx', i, 'prev', activeIdx, 'station', orderedStations[i]?.name);
-    setActiveIdx(i);
-    const s = orderedStations[i];
+  // Carousel settled on a station (by id) → highlight + zoom to it.
+  const onCarouselActive = (id: string) => {
+    console.log('[MapScreen] onCarouselActive → setActiveId', id, 'prev', activeId);
+    setActiveId(id);
+    const s = orderedStations.find((x) => x.id === id);
     if (s) focusStation(s);
   };
 
-  // A station marker was tapped → open the carousel, sync it to that card, zoom in.
+  // A station marker was tapped → open the carousel, sync it to that card (by id), zoom in.
   const onStationMarkerPress = (s: Station) => {
-    const i = orderedStations.findIndex((x) => x.id === s.id);
-    if (i >= 0) {
-      setShowList(true);
-      setActiveIdx(i);
-      carouselRef.current?.scrollToIndex(i);
-    }
+    setShowList(true);
+    setActiveId(s.id);
+    carouselRef.current?.scrollToId(s.id);
     focusStation(s);
     setSelected(s);
   };
@@ -364,7 +361,7 @@ export default function MapScreen() {
             Haptics.selectionAsync().catch(() => {});
             setShowList((v) => {
               const next = !v;
-              if (next && orderedStations[0]) { setActiveIdx(0); focusStation(orderedStations[0]); }
+              if (next && orderedStations[0]) { setActiveId(orderedStations[0].id); focusStation(orderedStations[0]); }
               return next;
             });
           }}>
@@ -378,7 +375,7 @@ export default function MapScreen() {
             <StationCarousel
               ref={carouselRef}
               stations={orderedStations}
-              activeIndex={activeIdx}
+              activeId={activeId}
               onActiveChange={onCarouselActive}
               onPressCard={(s) => { focusStation(s); setSelected(stations.find((x) => x.id === s.id) ?? null); }}
               onWaze={(s) => openWaze(s.lat, s.lng)}

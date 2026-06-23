@@ -1,4 +1,4 @@
-import React, { useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions, Pressable } from 'react-native';
 import Animated, { useAnimatedScrollHandler, useSharedValue, useAnimatedStyle, interpolate, interpolateColor, Extrapolation, runOnJS, type SharedValue } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -14,7 +14,7 @@ const SIDE = (SCREEN_W - CARD_W) / 2 - GAP / 2; // pad so card 0 is screen-cente
 
 type S = Station & { _distM?: number };
 
-export interface CarouselHandle { scrollToIndex: (i: number) => void }
+export interface CarouselHandle { scrollToId: (id: string) => void }
 
 /**
  * Snap-scrolling station carousel. The centered card scales up AND gets a persistent colored
@@ -24,50 +24,55 @@ export interface CarouselHandle { scrollToIndex: (i: number) => void }
  */
 export const StationCarousel = forwardRef<CarouselHandle, {
   stations: S[];
-  activeIndex: number;
-  onActiveChange: (i: number) => void;
+  activeId: string | null;
+  onActiveChange: (id: string) => void;
   onPressCard: (s: S) => void;
   onWaze: (s: S) => void;
-}>(function StationCarousel({ stations, activeIndex, onActiveChange, onPressCard, onWaze }, ref) {
+}>(function StationCarousel({ stations, activeId, onActiveChange, onPressCard, onWaze }, ref) {
   const x = useSharedValue(0);
   const scrollRef = useRef<Animated.ScrollView>(null);
-  const lastIndex = useRef(activeIndex);
+  const lastId = useRef<string | null>(activeId);
+  // Always read the CURRENT order inside callbacks (the list re-sorts by proximity as you move).
+  const stationsRef = useRef(stations);
+  stationsRef.current = stations;
 
   useImperativeHandle(ref, () => ({
-    scrollToIndex: (i: number) => {
-      lastIndex.current = i;
+    scrollToId: (id: string) => {
+      const i = stationsRef.current.findIndex((s) => s.id === id);
+      if (i < 0) return;
+      lastId.current = id;
       scrollRef.current?.scrollTo({ x: i * SNAP, animated: true });
     },
   }), []);
 
-  const notify = (i: number) => {
-    if (i !== lastIndex.current && stations[i]) {
-      lastIndex.current = i;
-      const s = stations[i];
-      const v = valueTheme[s.value];
-      // Debug: which card is selected + the highlight styles it should get.
-      console.log('[Carousel] active →', { index: i, id: s.id, name: s.name, value: s.value,
-        highlight: { color: v.color, tint: v.tint, border: '3px', scale: 1.05, opacity: 1, stripeW: 10 } });
-      Haptics.selectionAsync().catch(() => {});
-      onActiveChange(i);
-    }
-  };
-
+  // Resolve the centered SLOT → the station id at that slot in the CURRENT order, then report by id.
   const settle = (offset: number) => {
-    const idx = Math.round(offset / SNAP);
-    console.log('[Carousel] settle', { offsetX: Math.round(offset), SNAP: Math.round(SNAP), idx, activeIndex });
-    notify(idx);
+    const idx = Math.max(0, Math.min(stationsRef.current.length - 1, Math.round(offset / SNAP)));
+    const s = stationsRef.current[idx];
+    if (!s || s.id === lastId.current) return;
+    lastId.current = s.id;
+    console.log('[Carousel] settle → id', { slot: idx, id: s.id, name: s.name, offsetX: Math.round(offset) });
+    Haptics.selectionAsync().catch(() => {});
+    onActiveChange(s.id);
   };
 
+  const dragging = useRef(false);
   const scrollHandler = useAnimatedScrollHandler({
-    // Only update the shared value for the scale animation while dragging — do NOT thrash
-    // activeIndex mid-scroll (that caused flicker / wrong "active"). Commit on settle.
-    onScroll: (e) => { x.value = e.contentOffset.x; },
-    onMomentumEnd: (e) => { runOnJS(settle)(e.contentOffset.x); },
-    onEndDrag: (e) => { runOnJS(settle)(e.contentOffset.x); }, // catch slow drags w/ no momentum
+    onScroll: (e) => { x.value = e.contentOffset.x; },            // drives scale only (positional, fine)
+    onBeginDrag: () => { runOnJS(setDragging)(true); },
+    onMomentumEnd: (e) => { runOnJS(setDragging)(false); runOnJS(settle)(e.contentOffset.x); },
+    onEndDrag: (e) => { runOnJS(settle)(e.contentOffset.x); },
   });
+  function setDragging(v: boolean) { dragging.current = v; }
 
-  console.log('[Carousel] render', { count: stations.length, activeIndex, CARD_W: Math.round(CARD_W), SNAP: Math.round(SNAP) });
+  // Keep the active card centered on screen — when its slot changes (marker tap, or the
+  // proximity re-sort moves it) and the user isn't mid-drag, scroll it back to center.
+  const activeSlot = activeId ? stations.findIndex((s) => s.id === activeId) : -1;
+  useEffect(() => {
+    if (activeSlot < 0 || dragging.current) return;
+    const t = setTimeout(() => scrollRef.current?.scrollTo({ x: activeSlot * SNAP, animated: true }), 50);
+    return () => clearTimeout(t);
+  }, [activeSlot]);
 
   return (
     <Animated.ScrollView
@@ -81,7 +86,7 @@ export const StationCarousel = forwardRef<CarouselHandle, {
       contentContainerStyle={{ paddingHorizontal: SIDE }}
     >
       {stations.map((s, i) => (
-        <Card key={s.id} s={s} index={i} x={x} active={i === activeIndex} onPress={() => onPressCard(s)} onWaze={() => onWaze(s)} />
+        <Card key={s.id} s={s} index={i} x={x} active={s.id === activeId} onPress={() => onPressCard(s)} onWaze={() => onWaze(s)} />
       ))}
     </Animated.ScrollView>
   );
