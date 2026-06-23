@@ -7,6 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
 import { ContentProvider } from '@/content/ContentProvider';
 import { colors } from '@/theme';
+import '@/notifications/notifications'; // registers the foreground notification handler app-wide
 
 // Force RTL for the Hebrew app. forceRTL only takes effect after a reload, so if the app
 // launched LTR, set the flag and reload ONCE so the whole native layout flips to RTL.

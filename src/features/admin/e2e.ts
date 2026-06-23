@@ -134,6 +134,15 @@ export async function runAdminE2E(onStep: OnStep): Promise<{ passed: number; fai
     return 'נגיש';
   });
 
+  // 11b. Local notification — permission + fire a banner (foreground-safe)
+  await step('התראות: בדיקת נוטיפיקציה מקומית', async () => {
+    const { notifyNow, ensureNotifReady } = await import('@/notifications/notifications');
+    const ok = await ensureNotifReady();
+    if (!ok) throw new Error('הרשאת התראות לא ניתנה');
+    await notifyNow('בדיקת התראה ✅', 'אם רואים את זה — ההתראות עובדות!', { test: '1' });
+    return 'נשלחה התראה מקומית';
+  });
+
   // 12. God-Mode live read (phones + IoT sensors)
   await step('מפה חיה: קריאת live מ-RTDB (מובייל+IoT)', async () => {
     await get(ref(rtdb, 'live'));
