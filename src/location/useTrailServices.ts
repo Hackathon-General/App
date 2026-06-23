@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import { useAuth } from '@/auth/AuthProvider';
 import { startLiveLocation, startGeofencing, stopTracking } from './geofencing';
 import { registerForPush } from '@/notifications/notifications';
+import { useForegroundMessages } from '@/notifications/useForegroundMessages';
 
 /**
  * Starts the trail background services once a user is signed in:
@@ -12,6 +13,7 @@ import { registerForPush } from '@/notifications/notifications';
  */
 export function useTrailServices() {
   const { user } = useAuth();
+  useForegroundMessages(); // foreground FCM + new alerts → local notification banner
 
   useEffect(() => {
     if (!user) {

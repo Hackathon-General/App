@@ -7,6 +7,7 @@ import * as Location from 'expo-location';
 import { collection, addDoc } from '@react-native-firebase/firestore';
 import { db } from '@/firebase';
 import { useLive } from '@/features/live/useLive';
+import { useAlerts, ALERT_KIND } from '@/features/alerts/useAlerts';
 import { colors, spacing, radius } from '@/theme';
 import { AdminHeader } from '@/components/AdminHeader';
 import { MAP_PROVIDER, LivePinMarkers } from '@/map/markers';
@@ -24,6 +25,8 @@ const KINDS = [
 
 export default function AlertsScreen() {
   const pins = useLive();
+  const existingAlerts = useAlerts();
+  const [showExisting, setShowExisting] = useState(true);
   const mapRef = useRef<MapView>(null);
   const [point, setPoint] = useState<{ lat: number; lng: number } | null>(null);
   const [title, setTitle] = useState('');
@@ -72,6 +75,13 @@ export default function AlertsScreen() {
           <MapView ref={mapRef} style={StyleSheet.absoluteFill} provider={MAP_PROVIDER} initialRegion={INITIAL}
             onPress={(e) => { Haptics.selectionAsync().catch(() => {}); setPoint({ lat: e.nativeEvent.coordinate.latitude, lng: e.nativeEvent.coordinate.longitude }); }}>
             <LivePinMarkers pins={pins} />
+            {/* Existing alerts (dimmed, kind-colored) so you don't double-place */}
+            {showExisting && existingAlerts.map((a) => {
+              const k = ALERT_KIND[a.kind ?? 'info'];
+              return (
+                <Circle key={a.id} center={{ latitude: a.lat, longitude: a.lng }} radius={a.radius ?? 300} strokeColor={k.color} fillColor={`${k.color}18`} strokeWidth={1.5} />
+              );
+            })}
             {point && (
               <>
                 <Marker coordinate={{ latitude: point.lat, longitude: point.lng }} pinColor={colors.danger} />
@@ -79,6 +89,10 @@ export default function AlertsScreen() {
               </>
             )}
           </MapView>
+          <TouchableOpacity style={styles.layerToggle} onPress={() => setShowExisting((v) => !v)}>
+            <MaterialCommunityIcons name={showExisting ? 'eye' : 'eye-off'} size={14} color="#fff" />
+            <Text style={styles.layerToggleTxt}>התראות קיימות ({existingAlerts.length})</Text>
+          </TouchableOpacity>
           {point && (
             <View style={styles.reachPill}>
               <MaterialCommunityIcons name="account-multiple" size={15} color="#fff" />
@@ -139,6 +153,8 @@ function Label({ icon, text }: { icon: any; text: string }) {
 const styles = StyleSheet.create({
   c: { flex: 1, backgroundColor: colors.bg, direction: 'rtl' },
   mapCard: { height: 240, borderRadius: radius.lg, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 6, elevation: 3 },
+  layerToggle: { position: 'absolute', bottom: 10, left: 10, flexDirection: 'row-reverse', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill },
+  layerToggleTxt: { color: '#fff', fontWeight: '700', fontSize: 12 },
   reachPill: { position: 'absolute', top: 12, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.danger, paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.pill },
   reachTxt: { color: '#fff', fontWeight: '800' },
   myLoc: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#fff', borderWidth: 1.5, borderColor: colors.danger, borderRadius: radius.pill, paddingVertical: 11, marginTop: spacing.md },

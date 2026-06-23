@@ -9,6 +9,7 @@ import { useContent } from '@/content/ContentProvider';
 import { useLive, type LivePin } from '@/features/live/useLive';
 import { useFeedPins } from '@/features/feed/feed';
 import { useNfrs } from '@/features/missions/useNfrs';
+import { useAlerts, ALERT_KIND } from '@/features/alerts/useAlerts';
 import { PulseCircle } from '@/components/PulseCircle';
 import { useTorch } from '@/features/torch/useTorch';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -22,8 +23,11 @@ export default function AdminMap() {
   const pins = useLive();
   const feedPins = useFeedPins();
   const nfrs = useNfrs();
+  const alerts = useAlerts();
   const { torch } = useTorch();
   const [sel, setSel] = useState<LivePin | null>(null);
+  const [showMissions, setShowMissions] = useState(true);
+  const [showAlerts, setShowAlerts] = useState(true);
 
   const phones = pins.filter((p) => p.source === 'phone').length;
   const sensors = pins.filter((p) => p.source === 'sensor').length;
@@ -33,7 +37,9 @@ export default function AdminMap() {
       <MapView style={StyleSheet.absoluteFill} provider={MAP_PROVIDER} initialRegion={INITIAL}>
         <TrailPolyline waypoints={routes.waypoints} strokeWidth={3} />
         <StationMarkers stations={stations} />
-        {nfrs.map((n, i) => (
+
+        {/* Missions (NFR) layer */}
+        {showMissions && nfrs.map((n, i) => (
           <React.Fragment key={n.id}>
             <Circle center={{ latitude: n.lat, longitude: n.lng }} radius={n.radius ?? 150} strokeColor={colors.forest} fillColor="rgba(46,125,50,0.10)" strokeWidth={2} />
             <PulseCircle lat={n.lat} lng={n.lng} radius={n.radius ?? 150} color={colors.forest} />
@@ -42,10 +48,32 @@ export default function AdminMap() {
             </Marker>
           </React.Fragment>
         ))}
+
+        {/* Alerts layer (kind-colored radius + pin) */}
+        {showAlerts && alerts.map((a) => {
+          const k = ALERT_KIND[a.kind ?? 'info'];
+          return (
+            <React.Fragment key={a.id}>
+              <Circle center={{ latitude: a.lat, longitude: a.lng }} radius={a.radius ?? 300} strokeColor={k.color} fillColor={`${k.color}22`} strokeWidth={2} />
+              <Marker coordinate={{ latitude: a.lat, longitude: a.lng }} title={a.title} description={a.message} anchor={{ x: 0.5, y: 0.5 }}>
+                <View style={[styles.alertPin, { backgroundColor: k.color }]}>
+                  <MaterialCommunityIcons name={k.icon as never} size={15} color="#fff" />
+                </View>
+              </Marker>
+            </React.Fragment>
+          );
+        })}
+
         <LivePinMarkers pins={pins} onPress={setSel} />
         <FeedPinMarkers pins={feedPins} />
         {torch && <TorchMarker lat={torch.lat} lng={torch.lng} />}
       </MapView>
+
+      {/* Layer toggles — hide/show missions & alerts */}
+      <View style={[styles.layers, { top: insets.top + 56 }]}>
+        <LayerToggle icon="map-marker-plus" label={`משימות (${nfrs.length})`} on={showMissions} color={colors.forest} onPress={() => setShowMissions((v) => !v)} />
+        <LayerToggle icon="bullhorn" label={`התראות (${alerts.length})`} on={showAlerts} color={colors.danger} onPress={() => setShowAlerts((v) => !v)} />
+      </View>
 
       <View style={[styles.hud, { paddingTop: insets.top + spacing.sm }]}>
         <Text style={styles.hudTitle}>חמ"ל — God Mode</Text>
@@ -74,8 +102,21 @@ export default function AdminMap() {
   );
 }
 
+function LayerToggle({ icon, label, on, color, onPress }: { icon: any; label: string; on: boolean; color: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={[styles.layerBtn, on ? { backgroundColor: color } : { backgroundColor: 'rgba(255,255,255,0.94)' }]} onPress={onPress} activeOpacity={0.85}>
+      <MaterialCommunityIcons name={on ? icon : 'eye-off'} size={15} color={on ? '#fff' : colors.muted} />
+      <Text style={[styles.layerTxt, { color: on ? '#fff' : colors.muted }]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, direction: 'rtl' },
+  layers: { position: 'absolute', left: spacing.md, gap: 8 },
+  layerBtn: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 4, elevation: 4 },
+  layerTxt: { fontWeight: '800', fontSize: 12 },
+  alertPin: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   hud: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' },
   hudTitle: { fontSize: 18, fontWeight: '900', color: colors.ink, textShadowColor: '#fff', textShadowRadius: 6, writingDirection: 'rtl' },
   hudStatRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999 },
