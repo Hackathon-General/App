@@ -48,8 +48,11 @@ export const StationCarousel = forwardRef<CarouselHandle, {
   // Resolve the centered SLOT → station id in the CURRENT order; report by id.
   // `settled` = scroll has stopped (map may pan); live frames only update the highlight.
   const report = (offset: number, settled: boolean) => {
-    const idx = Math.max(0, Math.min(stationsRef.current.length - 1, Math.round(offset / SNAP)));
+    const n = stationsRef.current.length;
+    const raw = offset / SNAP;
+    const idx = Math.max(0, Math.min(n - 1, Math.round(raw)));
     const s = stationsRef.current[idx];
+    console.log('[Carousel] report', { offset: Math.round(offset), SNAP: Math.round(SNAP), raw: raw.toFixed(2), idx, id: s?.id, name: s?.name, settled });
     if (!s) return;
     if (s.id !== lastId.current) {
       lastId.current = s.id;
@@ -99,7 +102,10 @@ export const StationCarousel = forwardRef<CarouselHandle, {
       decelerationRate="fast"
       onScroll={scrollHandler}
       scrollEventThrottle={16}
-      contentContainerStyle={{ paddingHorizontal: SIDE }}
+      // Force LTR layout so offset↔index math is unambiguous (RTL flips contentOffset.x and
+      // breaks "centered slot = round(offset/SNAP)"). Card CONTENT stays RTL via its own styles.
+      style={{ direction: 'ltr' }}
+      contentContainerStyle={{ paddingHorizontal: SIDE, direction: 'ltr' }}
     >
       {stations.map((s, i) => (
         <Card key={s.id} s={s} index={i} x={x} active={s.id === activeId} onPress={() => onPressCard(s)} onWaze={() => onWaze(s)} />

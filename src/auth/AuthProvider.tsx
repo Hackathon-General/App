@@ -5,6 +5,7 @@ import {
   signInWithCredential,
   GoogleAuthProvider,
   linkWithCredential,
+  getIdTokenResult,
   type FirebaseAuthTypes,
 } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
@@ -64,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(u);
       if (u) {
         ensureProfile(u).catch(() => {});
-        const token = await u.getIdTokenResult();
+        const token = await getIdTokenResult(u);
         setRole((token.claims.role as Role) === 'admin' ? 'admin' : 'user');
       } else {
         setRole('user');
