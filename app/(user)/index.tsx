@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, ScrollView, Platform, Linking } from 'react-native';
 import MapView, { Marker, Polyline, Circle, type Region } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
@@ -64,6 +64,10 @@ export default function MapScreen() {
   // Map layer visibility — keeps the map uncluttered; tap a header chip to show/hide a type.
   const [layers, setLayers] = useState({ stations: true, torch: true, missions: true, alerts: true, people: true, feed: true });
   const toggleLayer = (k: keyof typeof layers) => { Haptics.selectionAsync().catch(() => {}); setLayers((s) => ({ ...s, [k]: !s[k] })); };
+  // Which filter GROUP is expanded ('layers' | 'stations' | null) — collapsible, grouped UI.
+  const [openGroup, setOpenGroup] = useState<'layers' | 'stations' | null>(null);
+  const openG = (g: 'layers' | 'stations') => { Haptics.selectionAsync().catch(() => {}); setOpenGroup((c) => (c === g ? null : g)); };
+  const activeLayerCount = Object.values(layers).filter(Boolean).length;
   const carouselRef = useRef<CarouselHandle>(null);
 
   // Track my location for proximity sorting + "center on me".
@@ -184,25 +188,37 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header bar: title + ONE scrollable filter row — layer toggles then station-value filters */}
+      {/* Header: title + compact GROUP chips that expand into their items */}
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <Text style={styles.title}>{content.siteTitle}</Text>
-        <View style={styles.filterBar}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-            {/* Layer toggles (what shows on the map) */}
-            <Chip label="לפיד" icon="torch" active={layers.torch} color={colors.gold} onPress={() => toggleLayer('torch')} />
-            <Chip label="משימות" icon="map-marker-star" active={layers.missions} color={colors.forest} onPress={() => toggleLayer('missions')} />
-            <Chip label="התראות" icon="bullhorn" active={layers.alerts} color={colors.danger} onPress={() => toggleLayer('alerts')} />
-            <Chip label="מטיילים" icon="account-group" active={layers.people} color={colors.sky} onPress={() => toggleLayer('people')} />
-            <Chip label="קהילה" icon="image-multiple" active={layers.feed} color={colors.mint} onPress={() => toggleLayer('feed')} />
-            <View style={styles.filterDivider} />
-            {/* Station value filters */}
-            <Chip label="כל התחנות" icon="map-marker-multiple" active={layers.stations && filter === 'all'} color={colors.terracotta} onPress={() => { if (!layers.stations) toggleLayer('stations'); setFilter('all'); }} />
-            {VALUE_KEYS.map((k) => (
-              <Chip key={k} label={valueTheme[k].label} icon={valueTheme[k].icon} active={layers.stations && filter === k} color={valueTheme[k].color} onPress={() => { if (!layers.stations) toggleLayer('stations'); setFilter(k); }} />
-            ))}
-          </ScrollView>
+        <View style={styles.groupRow}>
+          <GroupChip label="שכבות" icon="layers" badge={activeLayerCount} open={openGroup === 'layers'} onPress={() => openG('layers')} />
+          <GroupChip label={filter === 'all' ? 'תחנות' : valueTheme[filter].label} icon="map-marker-multiple" open={openGroup === 'stations'} onPress={() => openG('stations')} />
         </View>
+
+        {openGroup === 'layers' && (
+          <Animated.View entering={FadeInDown.duration(180)} style={styles.groupPanel}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+              <Chip label="לפיד" icon="torch" active={layers.torch} color={colors.gold} onPress={() => toggleLayer('torch')} />
+              <Chip label="משימות" icon="map-marker-star" active={layers.missions} color={colors.forest} onPress={() => toggleLayer('missions')} />
+              <Chip label="התראות" icon="bullhorn" active={layers.alerts} color={colors.danger} onPress={() => toggleLayer('alerts')} />
+              <Chip label="מטיילים" icon="account-group" active={layers.people} color={colors.sky} onPress={() => toggleLayer('people')} />
+              <Chip label="קהילה" icon="image-multiple" active={layers.feed} color={colors.mint} onPress={() => toggleLayer('feed')} />
+              <Chip label="תחנות" icon="map-marker-multiple" active={layers.stations} color={colors.terracotta} onPress={() => toggleLayer('stations')} />
+            </ScrollView>
+          </Animated.View>
+        )}
+
+        {openGroup === 'stations' && (
+          <Animated.View entering={FadeInDown.duration(180)} style={styles.groupPanel}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+              <Chip label="הכל" icon="map-marker-multiple" active={filter === 'all'} color={colors.terracotta} onPress={() => { if (!layers.stations) toggleLayer('stations'); setFilter('all'); }} />
+              {VALUE_KEYS.map((k) => (
+                <Chip key={k} label={valueTheme[k].label} icon={valueTheme[k].icon} active={filter === k} color={valueTheme[k].color} onPress={() => { if (!layers.stations) toggleLayer('stations'); setFilter(k); }} />
+              ))}
+            </ScrollView>
+          </Animated.View>
+        )}
       </View>
 
       {/* Map fills the rest, with rounded top corners tucked under the header */}
@@ -454,6 +470,17 @@ function Chip({ label, icon, active, color, onPress }: { label: string; icon?: a
   );
 }
 
+function GroupChip({ label, icon, badge, open, onPress }: { label: string; icon: any; badge?: number; open: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.groupChip, open && styles.groupChipOpen]}>
+      <MaterialCommunityIcons name={icon} size={16} color={open ? colors.forest : '#fff'} />
+      <Text style={[styles.groupChipTxt, { color: open ? colors.forest : '#fff' }]}>{label}</Text>
+      {badge != null && <View style={[styles.groupBadge, open && { backgroundColor: colors.forest }]}><Text style={styles.groupBadgeTxt}>{badge}</Text></View>}
+      <MaterialCommunityIcons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={open ? colors.forest : 'rgba(255,255,255,0.9)'} />
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.forest },
   header: {
@@ -466,6 +493,14 @@ const styles = StyleSheet.create({
   filterBar: { height: 40, direction: 'rtl' },
   filters: { gap: spacing.sm, alignItems: 'center', flexDirection: 'row', paddingHorizontal: 2 },
   filterDivider: { width: 1, height: 22, backgroundColor: 'rgba(255,255,255,0.35)', marginHorizontal: 4, alignSelf: 'center' },
+  // Grouped/expandable filter
+  groupRow: { flexDirection: 'row-reverse', gap: spacing.sm },
+  groupChip: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)', borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8 },
+  groupChipOpen: { backgroundColor: '#fff', borderColor: '#fff' },
+  groupChipTxt: { fontWeight: '800', fontSize: 13 },
+  groupBadge: { backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 9, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  groupBadgeTxt: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  groupPanel: { marginTop: spacing.sm, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: radius.md, paddingVertical: spacing.sm },
   chip: { flexDirection: 'row-reverse', gap: 5, height: 34, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, elevation: 2 },
   chipTxt: { fontWeight: '800', fontSize: 13 },
   mapWrap: {
