@@ -104,8 +104,9 @@ export const StationCarousel = forwardRef<CarouselHandle, {
       scrollEventThrottle={16}
       // Force LTR layout so offset↔index math is unambiguous (RTL flips contentOffset.x and
       // breaks "centered slot = round(offset/SNAP)"). Card CONTENT stays RTL via its own styles.
-      style={{ direction: 'ltr' }}
-      contentContainerStyle={{ paddingHorizontal: SIDE, direction: 'ltr' }}
+      style={{ direction: 'ltr', overflow: 'visible' }}
+      // Vertical padding gives the centered card (scale 1.12 + translateY) room so it isn't clipped.
+      contentContainerStyle={{ paddingHorizontal: SIDE, paddingVertical: 28, direction: 'ltr' }}
     >
       {stations.map((s, i) => (
         <Card key={s.id} s={s} index={i} x={x} active={s.id === activeId} onPress={() => onPressCard(s)} onWaze={() => onWaze(s)} />

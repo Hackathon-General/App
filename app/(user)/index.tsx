@@ -540,5 +540,5 @@ const styles = StyleSheet.create({
   },
   fabActive: { backgroundColor: colors.terracotta },
   // Proximity carousel container (above SOS via high zIndex)
-  carousel: { position: 'absolute', bottom: 24, left: 0, right: 0, zIndex: 10000, elevation: 12 },
+  carousel: { position: 'absolute', bottom: 24, left: 0, right: 0, zIndex: 10000, elevation: 12, overflow: 'visible' },
 });
