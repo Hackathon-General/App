@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import MapView, { Marker, Circle, type Region } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -24,17 +25,30 @@ export default function AdminMap() {
   const feedPins = useFeedPins();
   const nfrs = useNfrs();
   const alerts = useAlerts();
-  const { torch } = useTorch();
+  const { torch, resetTorch } = useTorch();
   const [sel, setSel] = useState<LivePin | null>(null);
   const [showMissions, setShowMissions] = useState(true);
   const [showAlerts, setShowAlerts] = useState(true);
+  const [placingTorch, setPlacingTorch] = useState(false);
 
   const phones = pins.filter((p) => p.source === 'phone').length;
   const sensors = pins.filter((p) => p.source === 'sensor').length;
 
+  const onMapPress = async (e: any) => {
+    if (!placingTorch) return;
+    const { latitude, longitude } = e.nativeEvent.coordinate;
+    setPlacingTorch(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    try {
+      await resetTorch({ lat: latitude, lng: longitude });
+    } catch (err: any) {
+      Alert.alert('שגיאה', err?.message ?? '');
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <MapView style={StyleSheet.absoluteFill} provider={MAP_PROVIDER} initialRegion={INITIAL}>
+      <MapView style={StyleSheet.absoluteFill} provider={MAP_PROVIDER} initialRegion={INITIAL} onPress={onMapPress}>
         <TrailPolyline waypoints={routes.waypoints} strokeWidth={3} />
         <StationMarkers stations={stations} />
 
@@ -69,11 +83,19 @@ export default function AdminMap() {
         {torch && <TorchMarker lat={torch.lat} lng={torch.lng} />}
       </MapView>
 
-      {/* Layer toggles — hide/show missions & alerts */}
+      {/* Layer toggles — hide/show missions & alerts + place torch */}
       <View style={[styles.layers, { top: insets.top + 56 }]}>
         <LayerToggle icon="map-marker-plus" label={`משימות (${nfrs.length})`} on={showMissions} color={colors.forest} onPress={() => setShowMissions((v) => !v)} />
         <LayerToggle icon="bullhorn" label={`התראות (${alerts.length})`} on={showAlerts} color={colors.danger} onPress={() => setShowAlerts((v) => !v)} />
+        <LayerToggle icon="torch" label={placingTorch ? 'הקש על המפה…' : 'הצב לפיד'} on={placingTorch} color={colors.gold} onPress={() => { Haptics.selectionAsync().catch(() => {}); setPlacingTorch((v) => !v); }} />
       </View>
+
+      {placingTorch && (
+        <View style={styles.placeHint} pointerEvents="none">
+          <MaterialCommunityIcons name="gesture-tap" size={16} color="#fff" />
+          <Text style={styles.placeHintTxt}>הקש על המפה כדי להציב את הלפיד</Text>
+        </View>
+      )}
 
       <View style={[styles.hud, { paddingTop: insets.top + spacing.sm }]}>
         <Text style={styles.hudTitle}>חמ"ל — God Mode</Text>
@@ -116,6 +138,8 @@ const styles = StyleSheet.create({
   layers: { position: 'absolute', left: spacing.md, gap: 8 },
   layerBtn: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 4, elevation: 4 },
   layerTxt: { fontWeight: '800', fontSize: 12 },
+  placeHint: { position: 'absolute', top: '45%', alignSelf: 'center', flexDirection: 'row-reverse', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 16, paddingVertical: 9, borderRadius: radius.pill },
+  placeHintTxt: { color: '#fff', fontWeight: '800', fontSize: 13, writingDirection: 'rtl' },
   alertPin: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   hud: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' },
   hudTitle: { fontSize: 18, fontWeight: '900', color: colors.ink, textShadowColor: '#fff', textShadowRadius: 6, writingDirection: 'rtl' },

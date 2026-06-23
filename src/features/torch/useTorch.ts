@@ -15,6 +15,7 @@ export interface TorchState {
 
 const takeTorchFn = httpsCallable(functions, 'takeTorch');
 const dropTorchFn = httpsCallable(functions, 'dropTorch');
+const resetTorchFn = httpsCallable(functions, 'resetTorch');
 
 /** Subscribe to the live torch state + expose take/drop actions. */
 export function useTorch() {
@@ -36,6 +37,11 @@ export function useTorch() {
     (args: { lat: number; lng: number; segmentKm: number }) => dropTorchFn(args),
     []
   );
+  // Admin-only: place/relocate the torch at a point (status → waiting).
+  const resetTorch = useCallback(
+    (args: { lat: number; lng: number }) => resetTorchFn(args),
+    []
+  );
 
-  return { torch, takeTorch, dropTorch };
+  return { torch, takeTorch, dropTorch, resetTorch };
 }
