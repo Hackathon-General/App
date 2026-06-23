@@ -1,6 +1,6 @@
 import React, { useRef, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, StyleSheet, Dimensions, Pressable } from 'react-native';
-import Animated, { useAnimatedScrollHandler, useSharedValue, useAnimatedStyle, useDerivedValue, interpolate, Extrapolation, runOnJS, type SharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedScrollHandler, useSharedValue, useAnimatedStyle, interpolate, interpolateColor, Extrapolation, runOnJS, type SharedValue } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors, spacing, radius, valueTheme } from '@/theme';
@@ -89,42 +89,30 @@ export const StationCarousel = forwardRef<CarouselHandle, {
 
 function Card({ s, index, x, active, onPress, onWaze }: { s: S; index: number; x: SharedValue<number>; active: boolean; onPress: () => void; onWaze: () => void }) {
   const v = valueTheme[s.value];
-  // Scale only off scroll position (smooth zoom). NO opacity — the highlight is the colored
-  // border/tint/scale on the active card; opacity-dimming read as "faded/stuck", so it's gone.
+  // EVERYTHING is driven by scroll position so the visually-centered card is ALWAYS the
+  // highlighted one — no state-sync lag, no mismatch between zoom and highlight.
   const animStyle = useAnimatedStyle(() => {
     const d = x.value - index * SNAP;
-    // Big contrast: centered card pops to 1.12, neighbors shrink to 0.8 and drop down.
     const scale = interpolate(d, [-SNAP, 0, SNAP], [0.8, 1.12, 0.8], Extrapolation.CLAMP);
     const translateY = interpolate(d, [-SNAP, 0, SNAP], [22, 0, 22], Extrapolation.CLAMP);
-    return { transform: [{ scale }, { translateY }] };
+    const opacity = interpolate(Math.abs(d), [0, SNAP * 0.5, SNAP], [1, 0.85, 0.55], Extrapolation.CLAMP);
+    return { transform: [{ scale }, { translateY }], opacity };
   });
-
-  // UI-thread → JS logger: report the ACTUAL computed scale for this card whenever it's centered.
-  const logAnim = (d: number, scale: number) => {
-    console.log('[Card anim]', { index, name: s.name, d: Math.round(d), scale: scale.toFixed(3), active });
-  };
-  useDerivedValue(() => {
-    const d = x.value - index * SNAP;
-    if (Math.abs(d) < 6) { // only when this card is essentially centered
-      const scale = interpolate(d, [-SNAP, 0, SNAP], [0.86, 1.04, 0.86], Extrapolation.CLAMP);
-      runOnJS(logAnim)(d, scale);
-    }
+  const cardStyle = useAnimatedStyle(() => {
+    const c = interpolate(Math.abs(x.value - index * SNAP), [0, SNAP * 0.45], [1, 0], Extrapolation.CLAMP); // 1 = centered
+    return {
+      borderColor: interpolateColor(c, [0, 1], [colors.line, v.color]),
+      backgroundColor: interpolateColor(c, [0, 1], ['#ffffff', v.tint]),
+      borderWidth: 1 + c * 2,
+      shadowColor: v.color,
+      shadowOpacity: 0.06 + c * 0.44,
+      shadowRadius: 4 + c * 14,
+    };
   });
-
-  // Log what THIS card renders as when its active state flips (debug card-change styling).
-  React.useEffect(() => {
-    console.log('[Card render]', { index, name: s.name, active, borderWidth: active ? 2.5 : 1, bg: active ? v.tint : '#fff', stripeW: active ? 10 : 5, scaleExpected: active ? 1.04 : '<1' });
-  }, [active, index, s.name, v.tint]);
 
   return (
     <Animated.View style={[{ width: CARD_W, marginHorizontal: GAP / 2 }, animStyle]}>
-      <View style={[
-        styles.card,
-        { opacity: active ? 1 : 0.6 },
-        active
-          ? { borderColor: v.color, borderWidth: 3, backgroundColor: v.tint, shadowColor: v.color, shadowOpacity: 0.5, shadowRadius: 18, elevation: 14 }
-          : { borderColor: colors.line, borderWidth: 1, backgroundColor: '#fff', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
-      ]}>
+      <Animated.View style={[styles.card, cardStyle]}>
         <Pressable style={styles.press} onPress={onPress}>
         <View style={[styles.stripe, { backgroundColor: v.color, width: active ? 10 : 5 }]} />
         <View style={styles.inner}>
@@ -150,13 +138,13 @@ function Card({ s, index, x, active, onPress, onWaze }: { s: S; index: number; x
           </View>
         </View>
         </Pressable>
-      </View>
+      </Animated.View>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#fff', borderRadius: radius.lg, borderColor: 'transparent', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  card: { backgroundColor: '#fff', borderRadius: radius.lg, borderColor: 'transparent', borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, elevation: 6 },
   press: { flexDirection: 'row', borderRadius: radius.lg, overflow: 'hidden', direction: 'rtl' },
   stripe: { width: 6 },
   inner: { flex: 1, padding: spacing.md },
