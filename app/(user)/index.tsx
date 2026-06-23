@@ -335,15 +335,18 @@ export default function MapScreen() {
           <FeedPinMarkers pins={feedPins} />
 
           {torch && (
-            <Marker
-              coordinate={{ latitude: torch.lat, longitude: torch.lng }}
-              title={torch.status === 'held' ? content.ui.torch.heldByOther : content.ui.torch.waiting}
-              anchor={{ x: 0.5, y: 0.5 }}
-            >
-              <View style={styles.torchMarker}>
-                <MaterialCommunityIcons name="torch" size={22} color="#fff" />
-              </View>
-            </Marker>
+            <>
+              <PulseCircle lat={torch.lat} lng={torch.lng} radius={120} color={colors.gold} />
+              <Marker
+                coordinate={{ latitude: torch.lat, longitude: torch.lng }}
+                title={torch.status === 'held' ? content.ui.torch.heldByOther : content.ui.torch.waiting}
+                anchor={{ x: 0.5, y: 0.5 }}
+              >
+                <View style={styles.torchMarker}>
+                  <MaterialCommunityIcons name="torch" size={22} color="#fff" />
+                </View>
+              </Marker>
+            </>
           )}
         </MapView>
 

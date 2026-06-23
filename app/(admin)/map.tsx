@@ -14,7 +14,7 @@ import { useAlerts, ALERT_KIND } from '@/features/alerts/useAlerts';
 import { PulseCircle } from '@/components/PulseCircle';
 import { useTorch } from '@/features/torch/useTorch';
 import { BottomSheet } from '@/components/BottomSheet';
-import { MAP_PROVIDER, TrailPolyline, StationMarkers, TorchMarker, LivePinMarkers, FeedPinMarkers } from '@/map/markers';
+import { MAP_PROVIDER, TrailPolyline, StationMarkers, LivePinMarkers, FeedPinMarkers } from '@/map/markers';
 
 const INITIAL: Region = { latitude: 32.72, longitude: 35.27, latitudeDelta: 0.55, longitudeDelta: 0.55 };
 
@@ -27,12 +27,20 @@ export default function AdminMap() {
   const alerts = useAlerts();
   const { torch, resetTorch } = useTorch();
   const [sel, setSel] = useState<LivePin | null>(null);
-  const [showMissions, setShowMissions] = useState(true);
-  const [showAlerts, setShowAlerts] = useState(true);
   const [placingTorch, setPlacingTorch] = useState(false);
 
-  const phones = pins.filter((p) => p.source === 'phone').length;
-  const sensors = pins.filter((p) => p.source === 'sensor').length;
+  // Per-type layer visibility. Defaults keep the map UNCLUTTERED: live people, sensors,
+  // torch, missions & alerts ON; the dense layers (stations, community photos) OFF by default.
+  const [layers, setLayers] = useState({
+    people: true, sensors: true, torch: true, missions: true, alerts: true, stations: false, feed: false,
+  });
+  const toggle = (k: keyof typeof layers) => { Haptics.selectionAsync().catch(() => {}); setLayers((s) => ({ ...s, [k]: !s[k] })); };
+
+  const phonePins = pins.filter((p) => p.source === 'phone');
+  const sensorPins = pins.filter((p) => p.source === 'sensor');
+  const phones = phonePins.length;
+  const sensors = sensorPins.length;
+  const shownPins = pins.filter((p) => (p.source === 'sensor' ? layers.sensors : layers.people));
 
   const onMapPress = async (e: any) => {
     if (!placingTorch) return;
@@ -50,10 +58,10 @@ export default function AdminMap() {
     <View style={styles.container}>
       <MapView style={StyleSheet.absoluteFill} provider={MAP_PROVIDER} initialRegion={INITIAL} onPress={onMapPress}>
         <TrailPolyline waypoints={routes.waypoints} strokeWidth={3} />
-        <StationMarkers stations={stations} />
+        {layers.stations && <StationMarkers stations={stations} />}
 
         {/* Missions (NFR) layer */}
-        {showMissions && nfrs.map((n, i) => (
+        {layers.missions && nfrs.map((n, i) => (
           <React.Fragment key={n.id}>
             <Circle center={{ latitude: n.lat, longitude: n.lng }} radius={n.radius ?? 150} strokeColor={colors.forest} fillColor="rgba(46,125,50,0.10)" strokeWidth={2} />
             <PulseCircle lat={n.lat} lng={n.lng} radius={n.radius ?? 150} color={colors.forest} />
@@ -64,7 +72,7 @@ export default function AdminMap() {
         ))}
 
         {/* Alerts layer (kind-colored radius + pin) */}
-        {showAlerts && alerts.map((a) => {
+        {layers.alerts && alerts.map((a) => {
           const k = ALERT_KIND[a.kind ?? 'info'];
           return (
             <React.Fragment key={a.id}>
@@ -78,17 +86,38 @@ export default function AdminMap() {
           );
         })}
 
-        <LivePinMarkers pins={pins} onPress={setSel} />
-        <FeedPinMarkers pins={feedPins} />
-        {torch && <TorchMarker lat={torch.lat} lng={torch.lng} />}
+        <LivePinMarkers pins={shownPins} onPress={setSel} />
+        {layers.feed && <FeedPinMarkers pins={feedPins} />}
+
+        {/* Torch — pulsing golden marker (the live relay point) */}
+        {layers.torch && torch && (
+          <>
+            <PulseCircle lat={torch.lat} lng={torch.lng} radius={120} color={colors.gold} />
+            <Marker coordinate={{ latitude: torch.lat, longitude: torch.lng }} anchor={{ x: 0.5, y: 0.5 }}
+              title={torch.status === 'held' ? 'הלפיד מוחזק' : 'הלפיד ממתין'} description={torch.holderName}>
+              <View style={styles.torchPin}><MaterialCommunityIcons name="torch" size={22} color="#fff" /></View>
+            </Marker>
+          </>
+        )}
       </MapView>
 
-      {/* Layer toggles — hide/show missions & alerts + place torch */}
+      {/* Per-type layer filters — keeps the map uncluttered; tap to show/hide each type */}
       <View style={[styles.layers, { top: insets.top + 56 }]}>
-        <LayerToggle icon="map-marker-plus" label={`משימות (${nfrs.length})`} on={showMissions} color={colors.forest} onPress={() => setShowMissions((v) => !v)} />
-        <LayerToggle icon="bullhorn" label={`התראות (${alerts.length})`} on={showAlerts} color={colors.danger} onPress={() => setShowAlerts((v) => !v)} />
-        <LayerToggle icon="torch" label={placingTorch ? 'הקש על המפה…' : 'הצב לפיד'} on={placingTorch} color={colors.gold} onPress={() => { Haptics.selectionAsync().catch(() => {}); setPlacingTorch((v) => !v); }} />
+        <LayerToggle icon="cellphone" label={`מטיילים (${phones})`} on={layers.people} color={colors.forest} onPress={() => toggle('people')} />
+        <LayerToggle icon="access-point" label={`חיישנים (${sensors})`} on={layers.sensors} color={colors.sky} onPress={() => toggle('sensors')} />
+        <LayerToggle icon="torch" label="לפיד" on={layers.torch} color={colors.gold} onPress={() => toggle('torch')} />
+        <LayerToggle icon="map-marker-plus" label={`משימות (${nfrs.length})`} on={layers.missions} color={colors.forest} onPress={() => toggle('missions')} />
+        <LayerToggle icon="bullhorn" label={`התראות (${alerts.length})`} on={layers.alerts} color={colors.danger} onPress={() => toggle('alerts')} />
+        <LayerToggle icon="map-marker-multiple" label="תחנות" on={layers.stations} color={colors.terracotta} onPress={() => toggle('stations')} />
+        <LayerToggle icon="image-multiple" label="קהילה" on={layers.feed} color={colors.mint} onPress={() => toggle('feed')} />
       </View>
+
+      {/* Place-torch action (separate from filters) */}
+      <TouchableOpacity style={[styles.placeTorchBtn, { top: insets.top + 56 }, placingTorch && { backgroundColor: colors.gold }]}
+        onPress={() => { Haptics.selectionAsync().catch(() => {}); setPlacingTorch((v) => !v); }}>
+        <MaterialCommunityIcons name="torch" size={16} color={placingTorch ? '#fff' : colors.gold} />
+        <Text style={[styles.placeTorchTxt, { color: placingTorch ? '#fff' : colors.ink }]}>{placingTorch ? 'הקש על המפה…' : 'הצב לפיד'}</Text>
+      </TouchableOpacity>
 
       {placingTorch && (
         <View style={styles.placeHint} pointerEvents="none">
@@ -140,6 +169,9 @@ const styles = StyleSheet.create({
   layerTxt: { fontWeight: '800', fontSize: 12 },
   placeHint: { position: 'absolute', top: '45%', alignSelf: 'center', flexDirection: 'row-reverse', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 16, paddingVertical: 9, borderRadius: radius.pill },
   placeHintTxt: { color: '#fff', fontWeight: '800', fontSize: 13, writingDirection: 'rtl' },
+  placeTorchBtn: { position: 'absolute', right: spacing.md, flexDirection: 'row-reverse', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.94)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 4, elevation: 4 },
+  placeTorchTxt: { fontWeight: '800', fontSize: 12 },
+  torchPin: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff', shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 4, elevation: 6 },
   alertPin: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   hud: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' },
   hudTitle: { fontSize: 18, fontWeight: '900', color: colors.ink, textShadowColor: '#fff', textShadowRadius: 6, writingDirection: 'rtl' },
