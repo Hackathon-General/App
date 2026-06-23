@@ -61,6 +61,9 @@ export default function MapScreen() {
   const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(null);
   const [showList, setShowList] = useState(false); // toggleable proximity carousel
   const [activeId, setActiveId] = useState<string | null>(null); // carousel ↔ map highlighted station (by id, list is proximity-sorted)
+  // Map layer visibility — keeps the map uncluttered; tap a header chip to show/hide a type.
+  const [layers, setLayers] = useState({ stations: true, torch: true, missions: true, alerts: true, people: true, feed: true });
+  const toggleLayer = (k: keyof typeof layers) => { Haptics.selectionAsync().catch(() => {}); setLayers((s) => ({ ...s, [k]: !s[k] })); };
   const carouselRef = useRef<CarouselHandle>(null);
 
   // Track my location for proximity sorting + "center on me".
@@ -181,14 +184,22 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header bar: solid background, above the map */}
+      {/* Header bar: title + ONE scrollable filter row — layer toggles then station-value filters */}
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <Text style={styles.title}>{content.siteTitle}</Text>
         <View style={styles.filterBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-            <Chip label="הכל" icon="map-marker-multiple" active={filter === 'all'} color={colors.forest} onPress={() => setFilter('all')} />
+            {/* Layer toggles (what shows on the map) */}
+            <Chip label="לפיד" icon="torch" active={layers.torch} color={colors.gold} onPress={() => toggleLayer('torch')} />
+            <Chip label="משימות" icon="map-marker-star" active={layers.missions} color={colors.forest} onPress={() => toggleLayer('missions')} />
+            <Chip label="התראות" icon="bullhorn" active={layers.alerts} color={colors.danger} onPress={() => toggleLayer('alerts')} />
+            <Chip label="מטיילים" icon="account-group" active={layers.people} color={colors.sky} onPress={() => toggleLayer('people')} />
+            <Chip label="קהילה" icon="image-multiple" active={layers.feed} color={colors.mint} onPress={() => toggleLayer('feed')} />
+            <View style={styles.filterDivider} />
+            {/* Station value filters */}
+            <Chip label="כל התחנות" icon="map-marker-multiple" active={layers.stations && filter === 'all'} color={colors.terracotta} onPress={() => { if (!layers.stations) toggleLayer('stations'); setFilter('all'); }} />
             {VALUE_KEYS.map((k) => (
-              <Chip key={k} label={valueTheme[k].label} icon={valueTheme[k].icon} active={filter === k} color={valueTheme[k].color} onPress={() => setFilter(k)} />
+              <Chip key={k} label={valueTheme[k].label} icon={valueTheme[k].icon} active={layers.stations && filter === k} color={valueTheme[k].color} onPress={() => { if (!layers.stations) toggleLayer('stations'); setFilter(k); }} />
             ))}
           </ScrollView>
         </View>
@@ -221,7 +232,7 @@ export default function MapScreen() {
           ))}
 
           {/* Active value-mission zones (radius + pulse + numbered pin) */}
-          {nfrs.map((n, i) => (
+          {layers.missions && nfrs.map((n, i) => (
             <React.Fragment key={`nfr-${n.id}`}>
               <Circle center={{ latitude: n.lat, longitude: n.lng }} radius={n.radius ?? 150} strokeColor={colors.forest} fillColor="rgba(44,110,73,0.12)" strokeWidth={2} />
               <PulseCircle lat={n.lat} lng={n.lng} radius={n.radius ?? 150} color={colors.forest} />
@@ -232,7 +243,7 @@ export default function MapScreen() {
           ))}
 
           {/* Admin alert zones (kind-colored radius + pulse + pin) */}
-          {alerts.map((a) => {
+          {layers.alerts && alerts.map((a) => {
             const k = ALERT_KIND[a.kind ?? 'info'];
             return (
               <React.Fragment key={`alert-${a.id}`}>
@@ -283,7 +294,7 @@ export default function MapScreen() {
           )}
 
           {/* התנדבויות (value stations) — round value-colored badge with the value icon */}
-          {visibleStations.map((s) => {
+          {layers.stations && visibleStations.map((s) => {
             const isActive = activeStation?.id === s.id;
             const vc = valueTheme[s.value].color;
             return (
@@ -311,7 +322,7 @@ export default function MapScreen() {
             );
           })}
           {/* Live people sharing publicly (Snapchat-style) — phones = avatar, sensors = runner */}
-          {livePins
+          {layers.people && livePins
             .filter((p) => p.id !== user?.uid)
             .map((p) => (
               <Marker
@@ -332,9 +343,9 @@ export default function MapScreen() {
             ))}
 
           {/* Community moments shared to the map — photo-thumbnail pins */}
-          <FeedPinMarkers pins={feedPins} />
+          {layers.feed && <FeedPinMarkers pins={feedPins} />}
 
-          {torch && (
+          {layers.torch && torch && (
             <>
               <PulseCircle lat={torch.lat} lng={torch.lng} radius={120} color={colors.gold} />
               <Marker
@@ -454,6 +465,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '800', color: '#fff', textAlign: 'center', marginBottom: spacing.sm },
   filterBar: { height: 40, direction: 'rtl' },
   filters: { gap: spacing.sm, alignItems: 'center', flexDirection: 'row', paddingHorizontal: 2 },
+  filterDivider: { width: 1, height: 22, backgroundColor: 'rgba(255,255,255,0.35)', marginHorizontal: 4, alignSelf: 'center' },
   chip: { flexDirection: 'row-reverse', gap: 5, height: 34, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, elevation: 2 },
   chipTxt: { fontWeight: '800', fontSize: 13 },
   mapWrap: {
