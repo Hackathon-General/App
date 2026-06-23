@@ -25,7 +25,7 @@ export interface CarouselHandle { scrollToId: (id: string) => void }
 export const StationCarousel = forwardRef<CarouselHandle, {
   stations: S[];
   activeId: string | null;
-  onActiveChange: (id: string) => void;
+  onActiveChange: (id: string, settled: boolean) => void;
   onPressCard: (s: S) => void;
   onWaze: (s: S) => void;
 }>(function StationCarousel({ stations, activeId, onActiveChange, onPressCard, onWaze }, ref) {
@@ -45,23 +45,28 @@ export const StationCarousel = forwardRef<CarouselHandle, {
     },
   }), []);
 
-  // Resolve the centered SLOT → the station id at that slot in the CURRENT order, then report by id.
-  const settle = (offset: number) => {
+  // Resolve the centered SLOT → station id in the CURRENT order; report by id.
+  // `settled` = scroll has stopped (map may pan); live frames only update the highlight.
+  const report = (offset: number, settled: boolean) => {
     const idx = Math.max(0, Math.min(stationsRef.current.length - 1, Math.round(offset / SNAP)));
     const s = stationsRef.current[idx];
-    if (!s || s.id === lastId.current) return;
-    lastId.current = s.id;
-    console.log('[Carousel] settle → id', { slot: idx, id: s.id, name: s.name, offsetX: Math.round(offset) });
-    Haptics.selectionAsync().catch(() => {});
-    onActiveChange(s.id);
+    if (!s) return;
+    if (s.id !== lastId.current) {
+      lastId.current = s.id;
+      Haptics.selectionAsync().catch(() => {});
+      onActiveChange(s.id, settled);
+    } else if (settled) {
+      onActiveChange(s.id, true); // same card but now settled → let the map pan
+    }
   };
 
   const dragging = useRef(false);
   const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (e) => { x.value = e.contentOffset.x; },            // drives scale only (positional, fine)
+    // Live: update highlight every frame (map marker tracks the card). Settle: allow map pan.
+    onScroll: (e) => { x.value = e.contentOffset.x; runOnJS(report)(e.contentOffset.x, false); },
     onBeginDrag: () => { runOnJS(setDragging)(true); },
-    onMomentumEnd: (e) => { runOnJS(setDragging)(false); runOnJS(settle)(e.contentOffset.x); },
-    onEndDrag: (e) => { runOnJS(settle)(e.contentOffset.x); },
+    onMomentumEnd: (e) => { runOnJS(setDragging)(false); runOnJS(report)(e.contentOffset.x, true); },
+    onEndDrag: (e) => { runOnJS(report)(e.contentOffset.x, true); },
   });
   function setDragging(v: boolean) { dragging.current = v; }
 

@@ -92,12 +92,14 @@ export default function MapScreen() {
     );
   };
 
-  // Carousel settled on a station (by id) → highlight + zoom to it.
-  const onCarouselActive = (id: string) => {
-    console.log('[MapScreen] onCarouselActive → setActiveId', id, 'prev', activeId);
+  // Carousel centered card changed. Highlight updates LIVE (so the map marker matches the card
+  // in real time); the map only pans when the scroll has SETTLED (avoids jerky mid-swipe panning).
+  const onCarouselActive = (id: string, settled: boolean) => {
     setActiveId(id);
-    const s = orderedStations.find((x) => x.id === id);
-    if (s) focusStation(s);
+    if (settled) {
+      const s = orderedStations.find((x) => x.id === id);
+      if (s) focusStation(s);
+    }
   };
 
   // A station marker was tapped → open the carousel, sync it to that card (by id), zoom in.
